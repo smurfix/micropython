@@ -1,0 +1,20 @@
+#!./micropython
+
+import sys
+if sys.version_info[1] == 4:
+	sys.path[0] = "/tmp/lib"
+	sys.path.insert(0,"/srv/src/trio")
+import trio
+
+async def r1(n):
+	await trio.sleep(n)
+	print(n)
+	
+async def run():
+	async with trio.open_nursery() as n:
+		n.start_soon(r1,1)
+		n.start_soon(r1,2)
+		await trio.sleep(1)
+		print("Yes")
+
+trio.run(run)

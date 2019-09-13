@@ -1,0 +1,8 @@
+#!./micropython
+
+import sys
+sys.path[0] = "/tmp/lib" # install location for micropython-lib
+
+import unittest
+m = __import__("contextvars.test_basics")
+unittest.main(m.test_basics)
