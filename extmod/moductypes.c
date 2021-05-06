@@ -639,6 +639,14 @@ STATIC mp_obj_t uctypes_struct_bytes_at(mp_obj_t ptr, mp_obj_t size) {
 }
 MP_DEFINE_CONST_FUN_OBJ_2(uctypes_struct_bytes_at_obj, uctypes_struct_bytes_at);
 
+// bytestring_at()
+// Capture null-terminated memory at given address of given size as bytes.
+STATIC mp_obj_t uctypes_struct_bytestring_at(mp_obj_t ptr) {
+    unsigned char *bytes = (unsigned char *)(uintptr_t)mp_obj_int_get_truncated(ptr);
+    return mp_obj_new_bytes(bytes, strlen((char *)bytes));
+}
+MP_DEFINE_CONST_FUN_OBJ_1(uctypes_struct_bytestring_at_obj, uctypes_struct_bytestring_at);
+
 STATIC const mp_obj_type_t uctypes_struct_type = {
     { &mp_type_type },
     .name = MP_QSTR_struct,
@@ -656,6 +664,7 @@ STATIC const mp_rom_map_elem_t mp_module_uctypes_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_sizeof), MP_ROM_PTR(&uctypes_struct_sizeof_obj) },
     { MP_ROM_QSTR(MP_QSTR_addressof), MP_ROM_PTR(&uctypes_struct_addressof_obj) },
     { MP_ROM_QSTR(MP_QSTR_bytes_at), MP_ROM_PTR(&uctypes_struct_bytes_at_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bytestring_at), MP_ROM_PTR(&uctypes_struct_bytestring_at_obj) },
     { MP_ROM_QSTR(MP_QSTR_bytearray_at), MP_ROM_PTR(&uctypes_struct_bytearray_at_obj) },
 
     { MP_ROM_QSTR(MP_QSTR_NATIVE), MP_ROM_INT(LAYOUT_NATIVE) },

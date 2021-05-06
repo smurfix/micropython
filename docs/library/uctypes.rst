@@ -219,6 +219,11 @@ Module contents
    bytes object, so if memory contents change later, created object
    retains original value.
 
+.. function:: bytestring_at(addr)
+
+   Capture memory at the given address as bytes object. The result
+   extends to, but not including, a terminating NULL byte.
+
 .. function:: bytearray_at(addr, size)
 
    Capture memory at the given address and size as bytearray object.
