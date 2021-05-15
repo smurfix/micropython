@@ -357,7 +357,9 @@ STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader, qstr_window_t *qw) {
 
     #if !MICROPY_EMIT_MACHINE_CODE
     if (kind != MP_CODE_BYTECODE) {
-        mp_raise_ValueError(MP_ERROR_TEXT("incompatible .mpy file"));
+        // mp_raise_ValueError(MP_ERROR_TEXT("incompatible .mpy file"));
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("incompatible .mpy file %d %d"), kind, MP_CODE_BYTECODE);
+
     }
     #endif
 
@@ -548,13 +550,32 @@ STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader, qstr_window_t *qw) {
 
 mp_raw_code_t *mp_raw_code_load(mp_reader_t *reader) {
     byte header[4];
+    char err = 0;
+    int errx = 0;
+
     read_bytes(reader, header, sizeof(header));
-    if (header[0] != 'M'
-        || header[1] != MPY_VERSION
-        || MPY_FEATURE_DECODE_FLAGS(header[2]) != MPY_FEATURE_FLAGS
-        || header[3] > mp_small_int_bits()
-        || read_uint(reader, NULL) > QSTR_WINDOW_SIZE) {
-        mp_raise_ValueError(MP_ERROR_TEXT("incompatible .mpy file"));
+    if (header[0] != 'M') {
+        err = 'H';
+        errx = header[0];
+    }
+    else if (header[1] != MPY_VERSION) {
+        err = 'V';
+        errx = MPY_VERSION;
+    }
+    else if (MPY_FEATURE_DECODE_FLAGS(header[2]) != MPY_FEATURE_FLAGS) {
+        err = 'F';
+        errx = MPY_FEATURE_FLAGS;
+    }
+    else if (header[3] > mp_small_int_bits()) {
+        err = 'I';
+        errx = mp_small_int_bits();
+    }
+    else if (read_uint(reader, NULL) > QSTR_WINDOW_SIZE) {
+        err = 'W';
+        errx = QSTR_WINDOW_SIZE;
+    }
+    if (err) {
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("incompatible .mpy file %c %d"), err, errx);
     }
     if (MPY_FEATURE_DECODE_ARCH(header[2]) != MP_NATIVE_ARCH_NONE) {
         byte arch = MPY_FEATURE_DECODE_ARCH(header[2]);
