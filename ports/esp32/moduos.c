@@ -30,6 +30,7 @@
 #include <string.h>
 
 #include "esp_system.h"
+#include "modmachine.h"
 
 #include "py/objstr.h"
 #include "py/runtime.h"
@@ -93,7 +94,11 @@ STATIC mp_obj_t os_dupterm_notify(mp_obj_t obj_in) {
         if (c < 0) {
             break;
         }
-        ringbuf_put(&stdin_ringbuf, c);
+        if (c == mp_interrupt_char) {
+            mp_sched_keyboard_interrupt();
+        } else {
+            ringbuf_put(&stdin_ringbuf, c);
+        }
     }
     return mp_const_none;
 }
