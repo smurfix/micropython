@@ -30,11 +30,14 @@
 
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
+#include <hal/uart_ll.h>
 
 #include "py/runtime.h"
+#include "py/mphal.h"
 #include "py/stream.h"
-#include "py/mperrno.h"
+#include "soc/uart_periph.h"
 #include "modmachine.h"
+#include "uart.h"
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 1, 0)
 #define UART_INV_TX UART_INVERSE_TXD
@@ -268,11 +271,23 @@ STATIC mp_obj_t machine_uart_make_new(const mp_obj_type_t *type, size_t n_args, 
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("UART(%d) does not exist"), uart_num);
     }
 
-    // Attempts to use UART0 from Python has resulted in all sorts of fun errors.
-    // FIXME: UART0 is disabled for now.
-    if (uart_num == UART_NUM_0) {
-        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("UART(%d) is disabled (dedicated to REPL)"), uart_num);
+    // Don't use an UART that's attached to the REPL.
+    #if MICROPY_PY_OS_DUPTERM
+    for (int idx = 0; idx < MICROPY_PY_OS_DUPTERM; ++idx) {
+        mp_obj_t obj = MP_STATE_VM(dupterm_objs[idx]);
+        if (obj == MP_OBJ_NULL || !mp_obj_is_type(obj, &machine_uart_type)) {
+            continue;
+        }
+        machine_uart_obj_t *uart = MP_OBJ_TO_PTR(obj);
+        if (uart->uart_num == uart_num) {
+            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("UART(%d) is used in REPL, slot %d"), uart_num, idx);
+        }
     }
+    #else
+    if (uart_num == UART_NUM_0) {
+        mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("UART(%d) is used in REPL"), uart_num);
+    }
+    #endif
 
     // Defaults
     uart_config_t uartcfg = {

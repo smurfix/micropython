@@ -145,7 +145,7 @@
 #define MICROPY_PY_URANDOM                  (1)
 #define MICROPY_PY_URANDOM_EXTRA_FUNCS      (1)
 #define MICROPY_PY_URANDOM_SEED_INIT_FUNC   (esp_random())
-#define MICROPY_PY_OS_DUPTERM               (1)
+#define MICROPY_PY_OS_DUPTERM               (2)
 #define MICROPY_PY_MACHINE                  (1)
 #define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
 #define MICROPY_PY_MACHINE_PULSE            (1)

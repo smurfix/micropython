@@ -64,6 +64,12 @@
 #include "extmod/modbluetooth.h"
 #endif
 
+#if MICROPY_PY_OS_DUPTERM
+#include "extmod/misc.h"
+#else
+#include <driver/uart.h>
+#endif
+
 // MicroPython runs as a task under FreeRTOS
 #define MP_TASK_PRIORITY        (ESP_TASK_PRIO_MIN + 1)
 #define MP_TASK_STACK_SIZE      (16 * 1024)
@@ -73,6 +79,28 @@ int vprintf_null(const char *format, va_list ap) {
     return 0;
 }
 
+#if MICROPY_PY_OS_DUPTERM
+STATIC void setup_term() {
+    // Check if there are any dupterm objects registered. If not, we
+    // activate UART(0), or else there will never be any chance to get a REPL
+    size_t idx;
+    for (idx = 0; idx < MICROPY_PY_OS_DUPTERM; ++idx) {
+        if (MP_STATE_VM(dupterm_objs[idx]) != MP_OBJ_NULL) {
+            break;
+        }
+    }
+    if (idx == MICROPY_PY_OS_DUPTERM) {
+        mp_obj_t args[2];
+        args[0] = MP_OBJ_NEW_SMALL_INT(0);
+        args[1] = MP_OBJ_NEW_SMALL_INT(115200);
+        args[0] = machine_uart_type.make_new(&machine_uart_type, 2, 0, args);
+        args[1] = MP_OBJ_NEW_SMALL_INT(1);
+        mp_uos_dupterm_obj.fun.var(2, args);
+        mp_hal_stdout_tx_str("Activated UART(0) for REPL\r\n");
+    }
+}
+#endif
+
 void mp_task(void *pvParameter) {
     volatile uint32_t sp = (uint32_t)get_sp();
     #if MICROPY_PY_THREAD
@@ -80,6 +108,9 @@ void mp_task(void *pvParameter) {
     #endif
     #if CONFIG_USB_ENABLED
     usb_init();
+    #elif MICROPY_PY_OS_DUPTERM
+    // we can't do that yet
+    // setup_term();
     #else
     uart_init();
     #endif
@@ -124,6 +155,10 @@ soft_reset:
 
     // initialise peripherals
     machine_pins_init();
+
+    #if MICROPY_PY_OS_DUPTERM
+    setup_term();
+    #endif
 
     // run boot-up scripts
     pyexec_frozen_module("_boot.py");
