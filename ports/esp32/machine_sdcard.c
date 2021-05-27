@@ -29,7 +29,8 @@
 #include "py/runtime.h"
 #include "py/mphal.h"
 #include "py/mperrno.h"
-#include "extmod/vfs_fat.h"
+
+#include "extmod/vfs.h"
 
 #if MICROPY_HW_ENABLE_SDCARD
 
