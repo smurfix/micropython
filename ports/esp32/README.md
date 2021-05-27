@@ -34,6 +34,10 @@ although other IDF v4 versions may also work.
 To install the ESP-IDF the full instructions can be found at the
 [Espressif Getting Started guide](https://docs.espressif.com/projects/esp-idf/en/v4.0.2/get-started/index.html#installation-step-by-step).
 
+This version of MicroPython adds support for several options that shrink
+the application by ~100K. Specifically, removing support for IPv6 requires
+a hacked ESP-IDF environment, available at https://github.com/smurfix/esp-idf.git .
+
 If you are on a Windows machine then the [Windows Subsystem for
 Linux](https://msdn.microsoft.com/en-au/commandline/wsl/install_guide) is the
 most efficient way to install the ESP32 toolchain and build the project. If
