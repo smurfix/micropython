@@ -107,20 +107,16 @@ void mp_hal_stdout_tx_str(const char *str) {
 
 void mp_hal_stdout_tx_strn(const char *str, uint32_t len) {
     // Only release the GIL if many characters are being sent
+    #if CONFIG_USB_ENABLED
     bool release_gil = len > 20;
     if (release_gil) {
         MP_THREAD_GIL_EXIT();
     }
-    #if CONFIG_USB_ENABLED
     usb_tx_strn(str, len);
-    #else
-    for (uint32_t i = 0; i < len; ++i) {
-        uart_tx_one_char(str[i]);
-    }
-    #endif
     if (release_gil) {
         MP_THREAD_GIL_ENTER();
     }
+    #endif
     mp_uos_dupterm_tx_strn(str, len);
 }
 
@@ -142,6 +138,11 @@ void mp_hal_stdout_tx_strn_cooked(const char *str, size_t len) {
     if (str > last) {
         mp_hal_stdout_tx_strn(last, str - last);
     }
+}
+
+void mp_hal_debug_tx_strn_cooked(void *env, const char *str, uint32_t len) {
+    (void)env;
+    mp_hal_stdout_tx_strn_cooked(str, len);
 }
 
 uint32_t mp_hal_ticks_ms(void) {

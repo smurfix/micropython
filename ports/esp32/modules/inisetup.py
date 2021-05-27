@@ -44,6 +44,12 @@ def setup():
 #esp.osdebug(None)
 #import webrepl
 #webrepl.start()
+
+## assume that the console input stream(s) need to get dropkicked
+from machine import Timer as _Timer
+from uos import dupterm_notify as _DT_N
+_DT_T = _Timer(3)
+_DT_T.init(mode=Timer.PERIODIC, callback=_DT_N, freq=50)
 """
         )
     return vfs
