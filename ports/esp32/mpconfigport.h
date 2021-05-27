@@ -35,7 +35,9 @@
 #define MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF (1)
 #define MICROPY_KBD_EXCEPTION               (1)
 #define MICROPY_HELPER_REPL                 (1)
+#ifndef MICROPY_REPL_EMACS_KEYS
 #define MICROPY_REPL_EMACS_KEYS             (1)
+#endif
 #define MICROPY_REPL_AUTO_INDENT            (1)
 #define MICROPY_LONGINT_IMPL                (MICROPY_LONGINT_IMPL_MPZ)
 #define MICROPY_ENABLE_SOURCE_LINE          (1)
@@ -117,9 +119,11 @@
 #define MICROPY_PY_UERRNO                   (1)
 #define MICROPY_PY_USELECT                  (1)
 #define MICROPY_PY_UTIME_MP_HAL             (1)
+#ifndef MICROPY_PY_THREAD
 #define MICROPY_PY_THREAD                   (1)
 #define MICROPY_PY_THREAD_GIL               (1)
 #define MICROPY_PY_THREAD_GIL_VM_DIVISOR    (32)
+#endif
 
 // extended modules
 #ifndef MICROPY_PY_BLUETOOTH
@@ -128,10 +132,16 @@
 #define MICROPY_BLUETOOTH_NIMBLE            (1)
 #define MICROPY_BLUETOOTH_NIMBLE_BINDINGS_ONLY (1)
 #endif
+#ifndef MICROPY_PY_UASYNCIO
 #define MICROPY_PY_UASYNCIO                 (1)
+#endif
 #define MICROPY_PY_UCTYPES                  (1)
+#ifndef MICROPY_PY_UZLIB
 #define MICROPY_PY_UZLIB                    (1)
+#endif
+#ifndef MICROPY_PY_UJSON
 #define MICROPY_PY_UJSON                    (1)
+#endif
 #define MICROPY_PY_URE                      (1)
 #define MICROPY_PY_URE_SUB                  (1)
 #define MICROPY_PY_UHEAPQ                   (1)
