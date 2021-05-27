@@ -32,23 +32,23 @@ def setup_conn(port, accept_handler):
 def accept_conn(listen_sock):
     global client_s
     cl, remote_addr = listen_sock.accept()
-    prev = uos.dupterm(None)
-    uos.dupterm(prev)
-    if prev:
-        print("\nConcurrent WebREPL connection from", remote_addr, "rejected")
-        cl.close()
-        return
     print("\nWebREPL connection from:", remote_addr)
     client_s = cl
     websocket_helper.server_handshake(cl)
     ws = uwebsocket.websocket(cl, True)
     ws = _webrepl._webrepl(ws)
     cl.setblocking(False)
+
+    # attach new
+    prev = uos.dupterm(ws)
+
     # notify REPL on socket incoming data (ESP32/ESP8266-only)
     if hasattr(uos, "dupterm_notify"):
         cl.setsockopt(socket.SOL_SOCKET, 20, uos.dupterm_notify)
-    uos.dupterm(ws)
 
+    # last: close old, in case it errors out
+    if prev:
+        prev.close()
 
 def stop():
     global listen_s, client_s
