@@ -27,6 +27,9 @@
  */
 
 #include <sys/time.h>
+
+#if MICROPY_VFS_FAT
+
 #include "lib/oofatfs/ff.h"
 #include "lib/timeutils/timeutils.h"
 
@@ -39,3 +42,5 @@ DWORD get_fattime(void) {
     return ((DWORD)(tm.tm_year - 1980) << 25) | ((DWORD)tm.tm_mon << 21) | ((DWORD)tm.tm_mday << 16) |
            ((DWORD)tm.tm_hour << 11) | ((DWORD)tm.tm_min << 5) | ((DWORD)tm.tm_sec >> 1);
 }
+
+#endif // MICROPY_VFS_FAT
