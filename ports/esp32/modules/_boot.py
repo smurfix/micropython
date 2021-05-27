@@ -1,5 +1,10 @@
 import uos
-if hasattr(uos,"dupterm_notify"):
+try:
+    _DT_T
+    uos.dupterm_notify
+except AttributeError:
+    pass
+except NameError:
     from machine import Timer as _Timer
     _DT_T = _Timer(3)
     _DT_T.init(mode=_Timer.PERIODIC, callback=uos.dupterm_notify, freq=50)
