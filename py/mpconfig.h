@@ -1423,6 +1423,9 @@ typedef double mp_float_t;
 #endif
 
 // Depends on MICROPY_PY_UCRYPTOLIB
+#if !MICROPY_PY_UCRYPTOLIB
+#undef MICROPY_PY_UCRYPTOLIB_CTR
+#endif
 #ifndef MICROPY_PY_UCRYPTOLIB_CTR
 #define MICROPY_PY_UCRYPTOLIB_CTR (0)
 #endif
@@ -1436,6 +1439,9 @@ typedef double mp_float_t;
 #endif
 
 // Depends on MICROPY_PY_UZLIB
+#if !MICROPY_PY_UZLIB
+#undef MICROPY_PY_UBINASCII_CRC32
+#endif
 #ifndef MICROPY_PY_UBINASCII_CRC32
 #define MICROPY_PY_UBINASCII_CRC32 (0)
 #endif
