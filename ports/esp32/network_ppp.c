@@ -33,6 +33,7 @@
 #include "lib/netutils/netutils.h"
 #include "modmachine.h"
 
+#ifdef CONFIG_PPP_SUPPORT
 #include "netif/ppp/ppp.h"
 #include "netif/ppp/pppos.h"
 #include "lwip/err.h"
@@ -283,3 +284,5 @@ const mp_obj_type_t ppp_if_type = {
     .name = MP_QSTR_PPP,
     .locals_dict = (mp_obj_dict_t *)&ppp_if_locals_dict,
 };
+
+#endif

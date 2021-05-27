@@ -41,7 +41,9 @@
 #include "py/mphal.h"
 #include "py/mperrno.h"
 #include "lib/netutils/netutils.h"
+#ifdef CONFIG_ESP_ETH
 #include "esp_eth.h"
+#endif
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "lwip/dns.h"
@@ -761,7 +763,9 @@ STATIC const mp_rom_map_elem_t mp_module_network_globals_table[] = {
     #if !MICROPY_ESP_IDF_4
     { MP_ROM_QSTR(MP_QSTR_LAN), MP_ROM_PTR(&get_lan_obj) },
     #endif
+    #ifdef CONFIG_PPP_SUPPORT
     { MP_ROM_QSTR(MP_QSTR_PPP), MP_ROM_PTR(&ppp_make_new_obj) },
+    #endif
     { MP_ROM_QSTR(MP_QSTR_phy_mode), MP_ROM_PTR(&esp_phy_mode_obj) },
 
     #if MODNETWORK_INCLUDE_CONSTANTS
