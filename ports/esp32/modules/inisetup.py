@@ -49,7 +49,7 @@ def setup():
 from machine import Timer as _Timer
 from uos import dupterm_notify as _DT_N
 _DT_T = _Timer(3)
-_DT_T.init(mode=Timer.PERIODIC, callback=_DT_N, freq=50)
+_DT_T.init(mode=_Timer.PERIODIC, callback=_DT_N, freq=50)
 """
         )
     return vfs
