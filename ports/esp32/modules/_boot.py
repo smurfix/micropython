@@ -9,7 +9,6 @@ except NameError:
     _DT_T = _Timer(3)
     _DT_T.init(mode=_Timer.PERIODIC, callback=uos.dupterm_notify, freq=50)
 
-import gc
 from flashbdev import bdev
 
 try:
@@ -20,4 +19,5 @@ except OSError:
 
     vfs = inisetup.setup()
 
+import gc
 gc.collect()
