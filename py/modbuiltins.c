@@ -230,7 +230,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_builtin_hex_obj, mp_builtin_hex);
 #if MICROPY_PY_BUILTINS_INPUT
 
 #include "py/mphal.h"
-#include "lib/mp-readline/readline.h"
+#include "shared/readline/readline.h"
 
 // A port can define mp_hal_readline if they want to use a custom function here
 #ifndef mp_hal_readline
@@ -322,7 +322,7 @@ STATIC mp_obj_t mp_builtin_next(size_t n_args, const mp_obj_t *args) {
     if (n_args == 1) {
         mp_obj_t ret = mp_iternext_allow_raise(args[0]);
         if (ret == MP_OBJ_STOP_ITERATION) {
-            mp_raise_type(&mp_type_StopIteration);
+            mp_raise_StopIteration(MP_STATE_THREAD(stop_iteration_arg));
         } else {
             return ret;
         }
@@ -336,7 +336,7 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_builtin_next_obj, 1, 2, mp_builtin_next);
 STATIC mp_obj_t mp_builtin_next(mp_obj_t o) {
     mp_obj_t ret = mp_iternext_allow_raise(o);
     if (ret == MP_OBJ_STOP_ITERATION) {
-        mp_raise_type(&mp_type_StopIteration);
+        mp_raise_StopIteration(MP_STATE_THREAD(stop_iteration_arg));
     } else {
         return ret;
     }
@@ -729,6 +729,9 @@ STATIC const mp_rom_map_elem_t mp_module_builtins_globals_table[] = {
     #endif
     { MP_ROM_QSTR(MP_QSTR_next), MP_ROM_PTR(&mp_builtin_next_obj) },
     { MP_ROM_QSTR(MP_QSTR_oct), MP_ROM_PTR(&mp_builtin_oct_obj) },
+    #if MICROPY_PY_IO
+    { MP_ROM_QSTR(MP_QSTR_open), MP_ROM_PTR(&mp_builtin_open_obj) },
+    #endif
     { MP_ROM_QSTR(MP_QSTR_ord), MP_ROM_PTR(&mp_builtin_ord_obj) },
     { MP_ROM_QSTR(MP_QSTR_pow), MP_ROM_PTR(&mp_builtin_pow_obj) },
     { MP_ROM_QSTR(MP_QSTR_print), MP_ROM_PTR(&mp_builtin_print_obj) },
@@ -775,6 +778,7 @@ STATIC const mp_rom_map_elem_t mp_module_builtins_globals_table[] = {
 
     // Extra builtins as defined by a port
     MICROPY_PORT_BUILTINS
+    MICROPY_PORT_EXTRA_BUILTINS
 };
 
 MP_DEFINE_CONST_DICT(mp_module_builtins_globals, mp_module_builtins_globals_table);
@@ -783,3 +787,5 @@ const mp_obj_module_t mp_module_builtins = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&mp_module_builtins_globals,
 };
+
+MP_REGISTER_MODULE(MP_QSTR_builtins, mp_module_builtins, 1);

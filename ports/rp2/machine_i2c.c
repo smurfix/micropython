@@ -33,10 +33,16 @@
 #include "hardware/i2c.h"
 
 #define DEFAULT_I2C_FREQ (400000)
-#define DEFAULT_I2C0_SCL (9)
-#define DEFAULT_I2C0_SDA (8)
-#define DEFAULT_I2C1_SCL (7)
-#define DEFAULT_I2C1_SDA (6)
+
+#ifndef MICROPY_HW_I2C0_SCL
+#define MICROPY_HW_I2C0_SCL (9)
+#define MICROPY_HW_I2C0_SDA (8)
+#endif
+
+#ifndef MICROPY_HW_I2C1_SCL
+#define MICROPY_HW_I2C1_SCL (7)
+#define MICROPY_HW_I2C1_SDA (6)
+#endif
 
 // SDA/SCL on even/odd pins, I2C0/I2C1 on even/odd pairs of pins.
 #define IS_VALID_SCL(i2c, pin) (((pin) & 1) == 1 && (((pin) & 2) >> 1) == (i2c))
@@ -52,8 +58,8 @@ typedef struct _machine_i2c_obj_t {
 } machine_i2c_obj_t;
 
 STATIC machine_i2c_obj_t machine_i2c_obj[] = {
-    {{&machine_hw_i2c_type}, i2c0, 0, DEFAULT_I2C0_SCL, DEFAULT_I2C0_SDA, 0},
-    {{&machine_hw_i2c_type}, i2c1, 1, DEFAULT_I2C1_SCL, DEFAULT_I2C1_SDA, 0},
+    {{&machine_hw_i2c_type}, i2c0, 0, MICROPY_HW_I2C0_SCL, MICROPY_HW_I2C0_SDA, 0},
+    {{&machine_hw_i2c_type}, i2c1, 1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA, 0},
 };
 
 STATIC void machine_i2c_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
@@ -121,12 +127,12 @@ STATIC int machine_i2c_transfer_single(mp_obj_base_t *self_in, uint16_t addr, si
     if (flags & MP_MACHINE_I2C_FLAG_READ) {
         ret = i2c_read_blocking(self->i2c_inst, addr, buf, len, nostop);
     } else {
-        if (len <= 2) {
-            // Workaround issue with hardware I2C not accepting short writes.
+        if (len == 0) {
+            // Workaround issue with hardware I2C not accepting zero-length writes.
             mp_machine_soft_i2c_obj_t soft_i2c = {
                 .base = { &mp_machine_soft_i2c_type },
                 .us_delay = 500000 / self->freq + 1,
-                .us_timeout = 255,
+                .us_timeout = 50000,
                 .scl = self->scl,
                 .sda = self->sda,
             };
@@ -139,11 +145,20 @@ STATIC int machine_i2c_transfer_single(mp_obj_base_t *self_in, uint16_t addr, si
             ret = mp_machine_soft_i2c_transfer(&soft_i2c.base, addr, 1, &bufs, flags);
             gpio_set_function(self->scl, GPIO_FUNC_I2C);
             gpio_set_function(self->sda, GPIO_FUNC_I2C);
+            return ret;
         } else {
             ret = i2c_write_blocking(self->i2c_inst, addr, buf, len, nostop);
         }
     }
-    return (ret < 0) ? -MP_EIO : ret;
+    if (ret < 0) {
+        if (ret == PICO_ERROR_TIMEOUT) {
+            return -MP_ETIMEDOUT;
+        } else {
+            return -MP_EIO;
+        }
+    } else {
+        return ret;
+    }
 }
 
 STATIC const mp_machine_i2c_p_t machine_i2c_p = {

@@ -31,7 +31,7 @@
 #if MICROPY_VFS_FAT
 
 #include "lib/oofatfs/ff.h"
-#include "lib/timeutils/timeutils.h"
+#include "shared/timeutils/timeutils.h"
 
 DWORD get_fattime(void) {
     struct timeval tv;

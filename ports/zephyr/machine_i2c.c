@@ -53,8 +53,6 @@ STATIC void machine_hard_i2c_print(const mp_print_t *print, mp_obj_t self_in, mp
 }
 
 mp_obj_t machine_hard_i2c_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
-    MP_MACHINE_I2C_CHECK_FOR_LEGACY_SOFTI2C_CONSTRUCTION(n_args, n_kw, all_args);
-
     enum { ARG_id, ARG_scl, ARG_sda, ARG_freq, ARG_timeout };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_id, MP_ARG_REQUIRED | MP_ARG_OBJ },
@@ -86,9 +84,7 @@ mp_obj_t machine_hard_i2c_make_new(const mp_obj_type_t *type, size_t n_args, siz
         mp_raise_NotImplementedError(MP_ERROR_TEXT("explicit choice of timeout is not implemented"));
     }
 
-    machine_hard_i2c_obj_t *self = m_new_obj(machine_hard_i2c_obj_t);
-
-    self->base.type = &machine_hard_i2c_type;
+    machine_hard_i2c_obj_t *self = mp_obj_malloc(machine_hard_i2c_obj_t, &machine_hard_i2c_type);
     self->dev = dev;
     self->restart = false;
 

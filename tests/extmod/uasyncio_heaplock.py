@@ -29,15 +29,15 @@ async def task(id, n, t):
 
 
 async def main():
-    t1 = asyncio.create_task(task(1, 4, 10))
-    t2 = asyncio.create_task(task(2, 4, 25))
+    t1 = asyncio.create_task(task(1, 4, 100))
+    t2 = asyncio.create_task(task(2, 2, 250))
 
     micropython.heap_lock()
 
     print("start")
-    await asyncio.sleep_ms(1)
+    await asyncio.sleep_ms(5)
     print("sleep")
-    await asyncio.sleep_ms(100)
+    await asyncio.sleep_ms(350)
     print("finish")
 
     micropython.heap_unlock()

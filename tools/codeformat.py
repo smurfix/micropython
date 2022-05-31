@@ -35,16 +35,16 @@ import subprocess
 # Relative to top-level repo dir.
 PATHS = [
     # C
+    "drivers/ninaw10/*.[ch]",
     "extmod/*.[ch]",
     "extmod/btstack/*.[ch]",
     "extmod/nimble/*.[ch]",
     "lib/mbedtls_errors/tester.c",
-    "lib/netutils/*.[ch]",
-    "lib/timeutils/*.[ch]",
-    "lib/utils/*.[ch]",
+    "shared/netutils/*.[ch]",
+    "shared/timeutils/*.[ch]",
+    "shared/runtime/*.[ch]",
     "mpy-cross/*.[ch]",
-    "ports/*/*.[ch]",
-    "ports/windows/msvc/**/*.[ch]",
+    "ports/**/*.[ch]",
     "py/*.[ch]",
     # Python
     "drivers/**/*.py",
@@ -57,10 +57,26 @@ PATHS = [
 ]
 
 EXCLUSIONS = [
+    # The cc3200 port is not fully formatted yet.
+    "ports/cc3200/*/*.[ch]",
+    # The nrf port is not fully formatted yet.
+    "ports/nrf/boards/*.[ch]",
+    "ports/nrf/device/*.[ch]",
+    "ports/nrf/drivers/*.[ch]",
+    "ports/nrf/modules/ble/*.[ch]",
+    "ports/nrf/modules/board/*.[ch]",
+    "ports/nrf/modules/machine/*.[ch]",
+    "ports/nrf/modules/music/*.[ch]",
+    "ports/nrf/modules/ubluepy/*.[ch]",
+    "ports/nrf/modules/uos/*.[ch]",
+    "ports/nrf/modules/utime/*.[ch]",
+    # STM32 USB dev/host code is mostly 3rd party.
+    "ports/stm32/usbdev/**/*.[ch]",
+    "ports/stm32/usbhost/**/*.[ch]",
+    # Teensy core code is 3rd party.
+    "ports/teensy/core/*.[ch]",
     # STM32 build includes generated Python code.
     "ports/*/build*",
-    # gitignore in ports/unix ignores *.py, so also do it here.
-    "ports/unix/*.py",
     # not real python files
     "tests/**/repl_*.py",
     # needs careful attention before applying automatic formatting

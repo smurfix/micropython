@@ -54,8 +54,7 @@ typedef struct _mp_obj_thread_lock_t {
 } mp_obj_thread_lock_t;
 
 STATIC mp_obj_thread_lock_t *mp_obj_new_thread_lock(void) {
-    mp_obj_thread_lock_t *self = m_new_obj(mp_obj_thread_lock_t);
-    self->base.type = &mp_type_thread_lock;
+    mp_obj_thread_lock_t *self = mp_obj_malloc(mp_obj_thread_lock_t, &mp_type_thread_lock);
     mp_thread_mutex_init(&self->mutex);
     self->locked = false;
     return self;
@@ -174,6 +173,8 @@ STATIC void *thread_entry(void *args_in) {
     // The GC starts off unlocked on this thread.
     ts.gc_lock_depth = 0;
 
+    ts.mp_pending_exception = MP_OBJ_NULL;
+
     // set locals and globals from the calling context
     mp_locals_set(args->dict_locals);
     mp_globals_set(args->dict_globals);
@@ -184,7 +185,6 @@ STATIC void *thread_entry(void *args_in) {
     mp_thread_start();
 
     // TODO set more thread-specific state here:
-    //  mp_pending_exception? (root pointer)
     //  cur_exception (root pointer)
 
     DEBUG_printf("[thread] start ts=%p args=%p stack=%p\n", &ts, &args, MP_STATE_THREAD(stack_top));
@@ -299,5 +299,7 @@ const mp_obj_module_t mp_module_thread = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&mp_module_thread_globals,
 };
+
+MP_REGISTER_MODULE(MP_QSTR__thread, mp_module_thread, MICROPY_PY_THREAD);
 
 #endif // MICROPY_PY_THREAD

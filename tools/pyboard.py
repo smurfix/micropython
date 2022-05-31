@@ -491,7 +491,10 @@ class Pyboard:
         )
         self.exec_(cmd, data_consumer=stdout_write_bytes)
 
-    def fs_get(self, src, dest, chunk_size=256):
+    def fs_get(self, src, dest, chunk_size=256, progress_callback=None):
+        if progress_callback:
+            src_size = int(self.exec_("import os\nprint(os.stat('%s')[6])" % src))
+            written = 0
         self.exec_("f=open('%s','rb')\nr=f.read" % src)
         with open(dest, "wb") as f:
             while True:
@@ -507,9 +510,15 @@ class Pyboard:
                 if not data:
                     break
                 f.write(data)
+                if progress_callback:
+                    written += len(data)
+                    progress_callback(written, src_size)
         self.exec_("f.close()")
 
-    def fs_put(self, src, dest, chunk_size=256):
+    def fs_put(self, src, dest, chunk_size=256, progress_callback=None):
+        if progress_callback:
+            src_size = os.path.getsize(src)
+            written = 0
         self.exec_("f=open('%s','wb')\nw=f.write" % dest)
         with open(src, "rb") as f:
             while True:
@@ -520,6 +529,9 @@ class Pyboard:
                     self.exec_("w(b" + repr(data) + ")")
                 else:
                     self.exec_("w(" + repr(data) + ")")
+                if progress_callback:
+                    written += len(data)
+                    progress_callback(written, src_size)
         self.exec_("f.close()")
 
     def fs_mkdir(self, dir):
@@ -546,7 +558,7 @@ def execfile(filename, device="/dev/ttyACM0", baudrate=115200, user="micro", pas
     pyb.close()
 
 
-def filesystem_command(pyb, args):
+def filesystem_command(pyb, args, progress_callback=None):
     def fname_remote(src):
         if src.startswith(":"):
             src = src[1:]
@@ -579,7 +591,7 @@ def filesystem_command(pyb, args):
                 src = fname_remote(src)
                 dest2 = fname_cp_dest(src, dest)
                 print(fmt % (src, dest2))
-                op(src, dest2)
+                op(src, dest2, progress_callback=progress_callback)
         else:
             op = {
                 "ls": pyb.fs_ls,
@@ -657,19 +669,39 @@ def main():
     )
     group = cmd_parser.add_mutually_exclusive_group()
     group.add_argument(
+        "--soft-reset",
+        default=True,
+        action="store_true",
+        help="Whether to perform a soft reset when connecting to the board [default]",
+    )
+    group.add_argument(
+        "--no-soft-reset",
+        action="store_false",
+        dest="soft_reset",
+    )
+    group = cmd_parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--follow",
         action="store_true",
+        default=None,
         help="follow the output after running the scripts [default if no scripts given]",
     )
     group.add_argument(
         "--no-follow",
+        action="store_false",
+        dest="follow",
+    )
+    group = cmd_parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--exclusive",
         action="store_true",
-        help="Do not follow the output after running the scripts.",
+        default=True,
+        help="Open the serial device for exclusive access [default]",
     )
     group.add_argument(
         "--no-exclusive",
-        action="store_true",
-        help="Do not try to open the serial device for exclusive access.",
+        action="store_false",
+        dest="exclusive",
     )
     cmd_parser.add_argument(
         "-f",
@@ -684,7 +716,7 @@ def main():
     # open the connection to the pyboard
     try:
         pyb = Pyboard(
-            args.device, args.baudrate, args.user, args.password, args.wait, not args.no_exclusive
+            args.device, args.baudrate, args.user, args.password, args.wait, args.exclusive
         )
     except PyboardError as er:
         print(er)
@@ -695,7 +727,7 @@ def main():
         # we must enter raw-REPL mode to execute commands
         # this will do a soft-reset of the board
         try:
-            pyb.enter_raw_repl()
+            pyb.enter_raw_repl(args.soft_reset)
         except PyboardError as er:
             print(er)
             pyb.close()
@@ -703,13 +735,13 @@ def main():
 
         def execbuffer(buf):
             try:
-                if args.no_follow:
-                    pyb.exec_raw_no_follow(buf)
-                    ret_err = None
-                else:
+                if args.follow is None or args.follow:
                     ret, ret_err = pyb.exec_raw(
                         buf, timeout=None, data_consumer=stdout_write_bytes
                     )
+                else:
+                    pyb.exec_raw_no_follow(buf)
+                    ret_err = None
             except PyboardError as er:
                 print(er)
                 pyb.close()

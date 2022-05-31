@@ -25,11 +25,6 @@ if(NOT MICROPY_BOARD)
     set(MICROPY_BOARD PICO)
 endif()
 
-# Set the PICO_BOARD if it's not already set.
-if(NOT PICO_BOARD)
-    string(TOLOWER ${MICROPY_BOARD} PICO_BOARD)
-endif()
-
 # Set the board directory and check that it exists.
 if(NOT MICROPY_BOARD_DIR)
     set(MICROPY_BOARD_DIR ${MICROPY_PORT_DIR}/boards/${MICROPY_BOARD})
@@ -38,8 +33,15 @@ if(NOT EXISTS ${MICROPY_BOARD_DIR}/mpconfigboard.cmake)
     message(FATAL_ERROR "Invalid MICROPY_BOARD specified: ${MICROPY_BOARD}")
 endif()
 
-# Include board config
+set(MICROPY_USER_FROZEN_MANIFEST ${MICROPY_FROZEN_MANIFEST})
+
+# Include board config, it may override MICROPY_FROZEN_MANIFEST
 include(${MICROPY_BOARD_DIR}/mpconfigboard.cmake) 
+
+# Set the PICO_BOARD if it's not already set (allow a board to override it).
+if(NOT PICO_BOARD)
+    string(TOLOWER ${MICROPY_BOARD} PICO_BOARD)
+endif()
 
 # Include component cmake fragments
 include(${MICROPY_DIR}/py/py.cmake)
@@ -64,28 +66,33 @@ set(MICROPY_SOURCE_LIB
     ${MICROPY_DIR}/lib/littlefs/lfs1_util.c
     ${MICROPY_DIR}/lib/littlefs/lfs2.c
     ${MICROPY_DIR}/lib/littlefs/lfs2_util.c
-    ${MICROPY_DIR}/lib/mp-readline/readline.c
     ${MICROPY_DIR}/lib/oofatfs/ff.c
     ${MICROPY_DIR}/lib/oofatfs/ffunicode.c
-    ${MICROPY_DIR}/lib/timeutils/timeutils.c
-    ${MICROPY_DIR}/lib/utils/gchelper_m0.s
-    ${MICROPY_DIR}/lib/utils/gchelper_native.c
-    ${MICROPY_DIR}/lib/utils/mpirq.c
-    ${MICROPY_DIR}/lib/utils/pyexec.c
-    ${MICROPY_DIR}/lib/utils/stdout_helpers.c
-    ${MICROPY_DIR}/lib/utils/sys_stdio_mphal.c
+    ${MICROPY_DIR}/shared/netutils/netutils.c
+    ${MICROPY_DIR}/shared/readline/readline.c
+    ${MICROPY_DIR}/shared/runtime/gchelper_m0.s
+    ${MICROPY_DIR}/shared/runtime/gchelper_native.c
+    ${MICROPY_DIR}/shared/runtime/interrupt_char.c
+    ${MICROPY_DIR}/shared/runtime/mpirq.c
+    ${MICROPY_DIR}/shared/runtime/pyexec.c
+    ${MICROPY_DIR}/shared/runtime/stdout_helpers.c
+    ${MICROPY_DIR}/shared/runtime/sys_stdio_mphal.c
+    ${MICROPY_DIR}/shared/timeutils/timeutils.c
 )
 
 set(MICROPY_SOURCE_DRIVERS
     ${MICROPY_DIR}/drivers/bus/softspi.c
+    ${MICROPY_DIR}/drivers/dht/dht.c
 )
 
 set(MICROPY_SOURCE_PORT
     fatfs_port.c
     machine_adc.c
+    machine_bitstream.c
     machine_i2c.c
+    machine_i2s.c
     machine_pin.c
-    machine_pwm.c
+    machine_rtc.c
     machine_spi.c
     machine_timer.c
     machine_uart.c
@@ -93,7 +100,6 @@ set(MICROPY_SOURCE_PORT
     main.c
     modmachine.c
     modrp2.c
-    moduos.c
     modutime.c
     mphalport.c
     mpthreadport.c
@@ -101,18 +107,20 @@ set(MICROPY_SOURCE_PORT
     rp2_pio.c
     tusb_port.c
     uart.c
+    msc_disk.c
 )
 
 set(MICROPY_SOURCE_QSTR
     ${MICROPY_SOURCE_PY}
     ${MICROPY_SOURCE_EXTMOD}
     ${MICROPY_SOURCE_USERMOD}
-    ${MICROPY_DIR}/lib/utils/mpirq.c
-    ${MICROPY_DIR}/lib/utils/sys_stdio_mphal.c
+    ${MICROPY_DIR}/shared/runtime/mpirq.c
+    ${MICROPY_DIR}/shared/runtime/sys_stdio_mphal.c
     ${PROJECT_SOURCE_DIR}/machine_adc.c
     ${PROJECT_SOURCE_DIR}/machine_i2c.c
+    ${PROJECT_SOURCE_DIR}/machine_i2s.c
     ${PROJECT_SOURCE_DIR}/machine_pin.c
-    ${PROJECT_SOURCE_DIR}/machine_pwm.c
+    ${PROJECT_SOURCE_DIR}/machine_rtc.c
     ${PROJECT_SOURCE_DIR}/machine_spi.c
     ${PROJECT_SOURCE_DIR}/machine_timer.c
     ${PROJECT_SOURCE_DIR}/machine_uart.c
@@ -154,13 +162,72 @@ set(PICO_SDK_COMPONENTS
     pico_sync
     pico_time
     pico_unique_id
+    pico_util
     tinyusb_common
     tinyusb_device
 )
 
-# Define mpy-cross flags and frozen manifest
+if(MICROPY_PY_BLUETOOTH)
+    list(APPEND MICROPY_SOURCE_PORT mpbthciport.c)
+    target_compile_definitions(${MICROPY_TARGET} PRIVATE
+        MICROPY_PY_BLUETOOTH=1
+        MICROPY_PY_BLUETOOTH_USE_SYNC_EVENTS=1
+        MICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE=1
+        MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING=1
+        MICROPY_PY_BLUETOOTH_ENABLE_L2CAP_CHANNELS=1
+    )
+endif()
+
+if(MICROPY_BLUETOOTH_NIMBLE)
+    list(APPEND MICROPY_SOURCE_PORT mpnimbleport.c)
+    target_compile_definitions(${MICROPY_TARGET} PRIVATE
+        MICROPY_BLUETOOTH_NIMBLE=1
+        MICROPY_BLUETOOTH_NIMBLE_BINDINGS_ONLY=0
+    )
+    target_compile_options(${MICROPY_TARGET} PRIVATE
+    # TODO: This flag is currently needed to make nimble build.
+    -Wno-unused-but-set-variable
+    )
+    include(${MICROPY_DIR}/extmod/nimble/nimble.cmake)
+    target_link_libraries(${MICROPY_TARGET} micropy_extmod_nimble)
+    get_target_property(NIMBLE_INCLUDE micropy_extmod_nimble INTERFACE_INCLUDE_DIRECTORIES)
+    list(APPEND MICROPY_INC_CORE ${NIMBLE_INCLUDE})
+endif()
+
+if (MICROPY_PY_NETWORK_NINAW10)
+    target_compile_definitions(${MICROPY_TARGET} PRIVATE
+        MICROPY_PY_NETWORK_NINAW10=1
+    )
+
+    target_include_directories(${MICROPY_TARGET} PRIVATE
+        ${MICROPY_DIR}/drivers/ninaw10/
+    )
+
+    # Enable NINA-W10 WiFi and Bluetooth drivers.
+    list(APPEND MICROPY_SOURCE_DRIVERS
+        ${MICROPY_DIR}/drivers/ninaw10/nina_bt_hci.c
+        ${MICROPY_DIR}/drivers/ninaw10/nina_wifi_drv.c
+        ${MICROPY_DIR}/drivers/ninaw10/nina_wifi_bsp.c
+    )
+
+    list(APPEND MICROPY_SOURCE_EXTMOD
+        ${MICROPY_DIR}/extmod/network_ninaw10.c
+    )
+
+    list(APPEND MICROPY_SOURCE_QSTR
+        ${MICROPY_DIR}/extmod/network_ninaw10.c
+    )
+endif()
+
+# Define mpy-cross flags
 set(MICROPY_CROSS_FLAGS -march=armv7m)
-set(MICROPY_FROZEN_MANIFEST ${PROJECT_SOURCE_DIR}/boards/manifest.py)
+
+# Set the frozen manifest file
+if (MICROPY_USER_FROZEN_MANIFEST)
+    set(MICROPY_FROZEN_MANIFEST ${MICROPY_USER_FROZEN_MANIFEST})
+elseif (NOT MICROPY_FROZEN_MANIFEST)
+    set(MICROPY_FROZEN_MANIFEST ${PROJECT_SOURCE_DIR}/boards/manifest.py)
+endif()
 
 target_sources(${MICROPY_TARGET} PRIVATE
     ${MICROPY_SOURCE_PY}
@@ -170,6 +237,7 @@ target_sources(${MICROPY_TARGET} PRIVATE
     ${MICROPY_SOURCE_PORT}
 )
 
+target_link_libraries(${MICROPY_TARGET} micropy_lib_mbedtls)
 target_link_libraries(${MICROPY_TARGET} usermod)
 
 target_include_directories(${MICROPY_TARGET} PRIVATE
@@ -183,6 +251,20 @@ target_include_directories(${MICROPY_TARGET} PRIVATE
 target_compile_options(${MICROPY_TARGET} PRIVATE
     -Wall
     -Werror
+)
+
+set_source_files_properties(
+    ${PICO_SDK_PATH}/src/rp2_common/pico_double/double_math.c
+    ${PICO_SDK_PATH}/src/rp2_common/pico_float/float_math.c
+    PROPERTIES
+    COMPILE_OPTIONS "-Wno-error=uninitialized"
+)
+
+set_source_files_properties(
+    ${PICO_TINYUSB_PATH}/src/portable/raspberrypi/rp2040/dcd_rp2040.c
+    ${PICO_TINYUSB_PATH}/src/portable/raspberrypi/rp2040/rp2040_usb.c
+    PROPERTIES
+    COMPILE_OPTIONS "-Wno-error=array-bounds;-Wno-error=unused-but-set-variable"
 )
 
 target_compile_definitions(${MICROPY_TARGET} PRIVATE
@@ -202,6 +284,13 @@ target_compile_definitions(${MICROPY_TARGET} PRIVATE
 target_link_libraries(${MICROPY_TARGET}
     ${PICO_SDK_COMPONENTS}
 )
+
+if (MICROPY_HW_ENABLE_DOUBLE_TAP)
+# Enable double tap reset into bootrom.
+target_link_libraries(${MICROPY_TARGET}
+    pico_bootsel_via_double_reset
+)
+endif()
 
 # todo this is a bit brittle, but we want to move a few source files into RAM (which requires
 #  a linker script modification) until we explicitly add  macro calls around the function

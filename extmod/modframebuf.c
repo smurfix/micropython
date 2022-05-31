@@ -31,7 +31,7 @@
 
 #if MICROPY_PY_FRAMEBUF
 
-#include "ports/stm32/font_petme128_8x8.h"
+#include "extmod/font_petme128_8x8.h"
 
 typedef struct _mp_obj_framebuf_t {
     mp_obj_base_t base;
@@ -266,8 +266,7 @@ STATIC void fill_rect(const mp_obj_framebuf_t *fb, int x, int y, int w, int h, u
 STATIC mp_obj_t framebuf_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 4, 5, false);
 
-    mp_obj_framebuf_t *o = m_new_obj(mp_obj_framebuf_t);
-    o->base.type = type;
+    mp_obj_framebuf_t *o = mp_obj_malloc(mp_obj_framebuf_t, type);
     o->buf_obj = args[0];
 
     mp_buffer_info_t bufinfo;
@@ -491,6 +490,10 @@ STATIC mp_obj_t framebuf_blit(size_t n_args, const mp_obj_t *args) {
     if (n_args > 4) {
         key = mp_obj_get_int(args[4]);
     }
+    mp_obj_framebuf_t *palette = NULL;
+    if (n_args > 5 && args[5] != mp_const_none) {
+        palette = MP_OBJ_TO_PTR(mp_obj_cast_to_native_base(args[5], MP_OBJ_FROM_PTR(&mp_type_framebuf)));
+    }
 
     if (
         (x >= self->width) ||
@@ -514,6 +517,9 @@ STATIC mp_obj_t framebuf_blit(size_t n_args, const mp_obj_t *args) {
         int cx1 = x1;
         for (int cx0 = x0; cx0 < x0end; ++cx0) {
             uint32_t col = getpixel(source, cx1, y1);
+            if (palette) {
+                col = getpixel(palette, col, 0);
+            }
             if (col != (uint32_t)key) {
                 setpixel(self, cx0, y0, col);
             }
@@ -523,7 +529,7 @@ STATIC mp_obj_t framebuf_blit(size_t n_args, const mp_obj_t *args) {
     }
     return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuf_blit_obj, 4, 5, framebuf_blit);
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuf_blit_obj, 4, 6, framebuf_blit);
 
 STATIC mp_obj_t framebuf_scroll(mp_obj_t self_in, mp_obj_t xstep_in, mp_obj_t ystep_in) {
     mp_obj_framebuf_t *self = MP_OBJ_TO_PTR(self_in);
@@ -621,8 +627,7 @@ STATIC const mp_obj_type_t mp_type_framebuf = {
 
 // this factory function is provided for backwards compatibility with old FrameBuffer1 class
 STATIC mp_obj_t legacy_framebuffer1(size_t n_args, const mp_obj_t *args) {
-    mp_obj_framebuf_t *o = m_new_obj(mp_obj_framebuf_t);
-    o->base.type = &mp_type_framebuf;
+    mp_obj_framebuf_t *o = mp_obj_malloc(mp_obj_framebuf_t, &mp_type_framebuf);
 
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(args[0], &bufinfo, MP_BUFFER_WRITE);
@@ -662,6 +667,8 @@ const mp_obj_module_t mp_module_framebuf = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&framebuf_module_globals,
 };
+
+MP_REGISTER_MODULE(MP_QSTR_framebuf, mp_module_framebuf, MICROPY_PY_FRAMEBUF);
 #endif
 
 #endif // MICROPY_PY_FRAMEBUF

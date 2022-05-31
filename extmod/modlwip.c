@@ -35,7 +35,7 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"
 
-#include "lib/netutils/netutils.h"
+#include "shared/netutils/netutils.h"
 
 #include "lwip/init.h"
 #include "lwip/tcp.h"
@@ -911,9 +911,14 @@ STATIC mp_obj_t lwip_socket_bind(mp_obj_t self_in, mp_obj_t addr_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(lwip_socket_bind_obj, lwip_socket_bind);
 
-STATIC mp_obj_t lwip_socket_listen(mp_obj_t self_in, mp_obj_t backlog_in) {
-    lwip_socket_obj_t *socket = MP_OBJ_TO_PTR(self_in);
-    mp_int_t backlog = mp_obj_get_int(backlog_in);
+STATIC mp_obj_t lwip_socket_listen(size_t n_args, const mp_obj_t *args) {
+    lwip_socket_obj_t *socket = MP_OBJ_TO_PTR(args[0]);
+
+    mp_int_t backlog = MICROPY_PY_USOCKET_LISTEN_BACKLOG_DEFAULT;
+    if (n_args > 1) {
+        backlog = mp_obj_get_int(args[1]);
+        backlog = (backlog < 0) ? 0 : backlog;
+    }
 
     if (socket->pcb.tcp == NULL) {
         mp_raise_OSError(MP_EBADF);
@@ -946,7 +951,7 @@ STATIC mp_obj_t lwip_socket_listen(mp_obj_t self_in, mp_obj_t backlog_in) {
 
     return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(lwip_socket_listen_obj, lwip_socket_listen);
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(lwip_socket_listen_obj, 1, 2, lwip_socket_listen);
 
 STATIC mp_obj_t lwip_socket_accept(mp_obj_t self_in) {
     lwip_socket_obj_t *socket = MP_OBJ_TO_PTR(self_in);
@@ -1502,16 +1507,16 @@ STATIC mp_uint_t lwip_socket_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_
             return 0;
         }
 
-        // Deregister callback (pcb.tcp is set to NULL below so must deregister now)
-        tcp_arg(socket->pcb.tcp, NULL);
-        tcp_err(socket->pcb.tcp, NULL);
-        tcp_recv(socket->pcb.tcp, NULL);
-
         // Free any incoming buffers or connections that are stored
         lwip_socket_free_incoming(socket);
 
         switch (socket->type) {
             case MOD_NETWORK_SOCK_STREAM: {
+                // Deregister callback (pcb.tcp is set to NULL below so must deregister now)
+                tcp_arg(socket->pcb.tcp, NULL);
+                tcp_err(socket->pcb.tcp, NULL);
+                tcp_recv(socket->pcb.tcp, NULL);
+
                 if (socket->pcb.tcp->state != LISTEN) {
                     // Schedule a callback to abort the connection if it's not cleanly closed after
                     // the given timeout.  The callback must be set before calling tcp_close since
@@ -1525,10 +1530,12 @@ STATIC mp_uint_t lwip_socket_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_
                 break;
             }
             case MOD_NETWORK_SOCK_DGRAM:
+                udp_recv(socket->pcb.udp, NULL, NULL);
                 udp_remove(socket->pcb.udp);
                 break;
             #if MICROPY_PY_LWIP_SOCK_RAW
             case MOD_NETWORK_SOCK_RAW:
+                raw_recv(socket->pcb.raw, NULL, NULL);
                 raw_remove(socket->pcb.raw);
                 break;
             #endif
@@ -1770,5 +1777,10 @@ const mp_obj_module_t mp_module_lwip = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&mp_module_lwip_globals,
 };
+
+MP_REGISTER_MODULE(MP_QSTR_lwip, mp_module_lwip, MICROPY_PY_LWIP);
+
+// On LWIP-ports, this is the usocket module (replaces extmod/modusocket.c).
+MP_REGISTER_MODULE(MP_QSTR_usocket, mp_module_lwip, MICROPY_PY_LWIP);
 
 #endif // MICROPY_PY_LWIP

@@ -34,7 +34,7 @@
 #include "py/objstr.h"
 #include "py/mperrno.h"
 #include "extmod/vfs.h"
-#include "lib/timeutils/timeutils.h"
+#include "shared/timeutils/timeutils.h"
 
 STATIC int MP_VFS_LFSx(dev_ioctl)(const struct LFSx_API (config) * c, int cmd, int arg, bool must_return_int) {
     mp_obj_t ret = mp_vfs_blockdev_ioctl(c->context, cmd, arg);
@@ -203,8 +203,7 @@ STATIC mp_obj_t MP_VFS_LFSx(ilistdir_func)(size_t n_args, const mp_obj_t *args) 
         path = vstr_null_terminated_str(&self->cur_dir);
     }
 
-    MP_VFS_LFSx(ilistdir_it_t) * iter = m_new_obj(MP_VFS_LFSx(ilistdir_it_t));
-    iter->base.type = &mp_type_polymorph_iter;
+    MP_VFS_LFSx(ilistdir_it_t) * iter = mp_obj_malloc(MP_VFS_LFSx(ilistdir_it_t), &mp_type_polymorph_iter);
     iter->iternext = MP_VFS_LFSx(ilistdir_it_iternext);
     iter->is_str = is_str_type;
     iter->vfs = self;

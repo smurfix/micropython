@@ -33,7 +33,7 @@
 #include "py/objarray.h"
 #include "py/stream.h"
 #include "extmod/misc.h"
-#include "lib/utils/interrupt_char.h"
+#include "shared/runtime/interrupt_char.h"
 
 #if MICROPY_PY_OS_DUPTERM
 
@@ -192,6 +192,10 @@ STATIC mp_obj_t mp_uos_dupterm(size_t n_args, const mp_obj_t *args) {
         mp_get_stream_raise(args[0], MP_STREAM_OP_READ | MP_STREAM_OP_WRITE | MP_STREAM_OP_IOCTL);
         MP_STATE_VM(dupterm_objs[idx]) = args[0];
     }
+
+    #if MICROPY_PY_UOS_DUPTERM_STREAM_DETACHED_ATTACHED
+    mp_uos_dupterm_stream_detached_attached(previous_obj, args[0]);
+    #endif
 
     return previous_obj;
 }
