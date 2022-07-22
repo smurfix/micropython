@@ -163,41 +163,6 @@
 
 #define MP_STATE_PORT MP_STATE_VM
 
-#ifndef MICROPY_BOARD_ROOT_POINTERS
-#define MICROPY_BOARD_ROOT_POINTERS
-#endif
-
-#define MICROPY_PORT_ROOT_POINTERS \
-    const char *readline_hist[8]; \
-    \
-    mp_obj_t pyb_hid_report_desc; \
-    \
-    mp_obj_t pyb_config_main; \
-    \
-    mp_obj_t pyb_switch_callback; \
-    \
-    mp_obj_t pin_class_mapper; \
-    mp_obj_t pin_class_map_dict; \
-    \
-    mp_obj_t pyb_extint_callback[PYB_EXTI_NUM_VECTORS]; \
-    \
-    /* pointers to all Timer objects (if they have been created) */ \
-    struct _pyb_timer_obj_t *pyb_timer_obj_all[MICROPY_HW_MAX_TIMER]; \
-    \
-    /* stdio is repeated on this UART object if it's not null */ \
-    struct _machine_uart_obj_t *pyb_stdio_uart; \
-    \
-    /* pointers to all UART objects (if they have been created) */ \
-    struct _machine_uart_obj_t *machine_uart_obj_all[MICROPY_HW_MAX_UART + MICROPY_HW_MAX_LPUART]; \
-    \
-    /* list of registered NICs */ \
-    /* mp_obj_list_t mod_network_nic_list; */ \
-    \
-    /* root pointers for sub-systems */ \
-    \
-    /* root pointers defined by a board */ \
-    MICROPY_BOARD_ROOT_POINTERS \
-
 // type definitions for the specific machine
 
 #define MICROPY_MAKE_POINTER_CALLABLE(p) ((void *)((uint32_t)(p) | 1))

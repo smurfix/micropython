@@ -270,7 +270,7 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
                     S_NEXT(s);
                 }
                 if (flt) {
-                    next = mp_parse_num_decimal(vstr.buf, vstr.len, false, false, NULL);
+                    next = mp_parse_num_float(vstr.buf, vstr.len, false, NULL);
                 } else {
                     next = mp_parse_num_integer(vstr.buf, vstr.len, 10, NULL);
                 }
@@ -381,6 +381,6 @@ const mp_obj_module_t mp_module_ujson = {
     .globals = (mp_obj_dict_t *)&mp_module_ujson_globals,
 };
 
-MP_REGISTER_MODULE(MP_QSTR_ujson, mp_module_ujson, MICROPY_PY_UJSON);
+MP_REGISTER_MODULE(MP_QSTR_ujson, mp_module_ujson);
 
 #endif // MICROPY_PY_UJSON

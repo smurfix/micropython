@@ -40,7 +40,7 @@
 #include "modmachine.h"
 #include "dma_manager.h"
 
-#include "clock_config.h"
+#include CLOCK_CONFIG_H
 #include "fsl_iomuxc.h"
 #include "fsl_dmamux.h"
 #include "fsl_edma.h"
@@ -1223,5 +1223,7 @@ const mp_obj_type_t machine_i2s_type = {
     .make_new = machine_i2s_make_new,
     .locals_dict = (mp_obj_dict_t *)&machine_i2s_locals_dict,
 };
+
+MP_REGISTER_ROOT_POINTER(struct _machine_i2s_obj_t *machine_i2s_obj[MICROPY_HW_I2S_NUM]);
 
 #endif // MICROPY_PY_MACHINE_I2S

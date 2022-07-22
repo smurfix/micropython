@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2020 Glenn Ruben Bakke
+ * Copyright (c) 2022 Ibrahim Abdelkader <iabdalkader@openmv.io>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,52 +24,31 @@
  * THE SOFTWARE.
  */
 
-// Board overridable build configuration.
+#include "py/runtime.h"
+#include "py/mphal.h"
+#include "modmachine.h"
 
-#ifndef MICROPY_MBFS
-#define MICROPY_MBFS                       (0)
-#endif
+#if MICROPY_HW_USB_CDC_1200BPS_TOUCH
 
-#ifndef MICROPY_VFS
-#define MICROPY_VFS                        (1)
-#endif
+#include "tusb.h"
 
-// Board overridable emitter configuration.
+static mp_sched_node_t mp_bootloader_sched_node;
 
-#ifndef MICROPY_EMIT_THUMB
-#define MICROPY_EMIT_THUMB          (1)
-#endif
+STATIC void usbd_cdc_run_bootloader_task(mp_sched_node_t *node) {
+    mp_hal_delay_ms(250);
+    machine_bootloader(0, NULL);
+}
 
-#ifndef MICROPY_EMIT_INLINE_THUMB
-#define MICROPY_EMIT_INLINE_THUMB   (1)
-#endif
+void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
+    if (dtr == false && rts == false) {
+        // Device is disconnected.
+        cdc_line_coding_t line_coding;
+        tud_cdc_n_get_line_coding(itf, &line_coding);
+        if (line_coding.bit_rate == 1200) {
+            // Delay bootloader jump to allow the USB stack to service endpoints.
+            mp_sched_schedule_node(&mp_bootloader_sched_node, usbd_cdc_run_bootloader_task);
+        }
+    }
+}
 
-// Board overridable feature configuration.
-
-#ifndef MICROPY_ENABLE_SOURCE_LINE
-#define MICROPY_ENABLE_SOURCE_LINE         (1)
-#endif
-
-#ifndef MICROPY_PY_ARRAY_SLICE_ASSIGN
-#define MICROPY_PY_ARRAY_SLICE_ASSIGN      (1)
-#endif
-
-#ifndef MICROPY_PY_SYS_STDFILES
-#define MICROPY_PY_SYS_STDFILES            (1)
-#endif
-
-#ifndef MICROPY_PY_UBINASCII
-#define MICROPY_PY_UBINASCII               (1)
-#endif
-
-// Board overridable port specific feature configuration.
-
-#ifndef MICROPY_PY_NRF
-#define MICROPY_PY_NRF                     (1)
-#endif
-
-// Board overridable hardware configuration.
-
-#ifndef MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE
-#define MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE (1)
 #endif

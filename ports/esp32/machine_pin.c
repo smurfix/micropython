@@ -92,7 +92,7 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     #endif
     {{&machine_pin_type}, GPIO_NUM_18},
     {{&machine_pin_type}, GPIO_NUM_19},
-    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 2)
     {{&machine_pin_type}, GPIO_NUM_20},
     #else
     {{NULL}, -1},
@@ -572,7 +572,7 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     #endif
     {{&machine_pin_irq_type}, GPIO_NUM_18},
     {{&machine_pin_irq_type}, GPIO_NUM_19},
-    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 2)
     {{&machine_pin_irq_type}, GPIO_NUM_20},
     #else
     {{NULL}, -1},
@@ -729,3 +729,5 @@ STATIC const mp_obj_type_t machine_pin_irq_type = {
     .call = machine_pin_irq_call,
     .locals_dict = (mp_obj_dict_t *)&machine_pin_irq_locals_dict,
 };
+
+MP_REGISTER_ROOT_POINTER(mp_obj_t machine_pin_irq_handler[40]);

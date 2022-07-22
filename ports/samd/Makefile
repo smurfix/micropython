@@ -22,6 +22,7 @@ FROZEN_MANIFEST ?= boards/manifest.py
 
 # Include py core make definitions
 include $(TOP)/py/py.mk
+include $(TOP)/extmod/extmod.mk
 
 GIT_SUBMODULES = lib/asf4 lib/tinyusb
 
@@ -126,6 +127,7 @@ SRC_QSTR += \
 	machine_led.c \
 	modsamd.c \
 	samd_flash.c \
+	shared/readline/readline.c \
 
 SRC_QSTR += $(SRC_MOD) $(SRC_CXX)
 

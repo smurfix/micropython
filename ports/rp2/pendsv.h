@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2020 Glenn Ruben Bakke
+ * Copyright (c) 2022 Damien P. George
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,53 +23,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef MICROPY_INCLUDED_RP2_PENDSV_H
+#define MICROPY_INCLUDED_RP2_PENDSV_H
 
-// Board overridable build configuration.
+#include <stddef.h>
 
-#ifndef MICROPY_MBFS
-#define MICROPY_MBFS                       (0)
-#endif
+enum {
+    #if MICROPY_PY_LWIP
+    PENDSV_DISPATCH_LWIP,
+    #endif
+    #if MICROPY_PY_NETWORK_CYW43
+    PENDSV_DISPATCH_CYW43,
+    #endif
+    #if MICROPY_PY_NETWORK_WIZNET5K
+    PENDSV_DISPATCH_WIZNET,
+    #endif
+    PENDSV_DISPATCH_MAX
+};
 
-#ifndef MICROPY_VFS
-#define MICROPY_VFS                        (1)
-#endif
+#define PENDSV_DISPATCH_NUM_SLOTS PENDSV_DISPATCH_MAX
 
-// Board overridable emitter configuration.
+typedef void (*pendsv_dispatch_t)(void);
 
-#ifndef MICROPY_EMIT_THUMB
-#define MICROPY_EMIT_THUMB          (1)
-#endif
+void pendsv_suspend(void);
+void pendsv_resume(void);
+void pendsv_schedule_dispatch(size_t slot, pendsv_dispatch_t f);
 
-#ifndef MICROPY_EMIT_INLINE_THUMB
-#define MICROPY_EMIT_INLINE_THUMB   (1)
-#endif
-
-// Board overridable feature configuration.
-
-#ifndef MICROPY_ENABLE_SOURCE_LINE
-#define MICROPY_ENABLE_SOURCE_LINE         (1)
-#endif
-
-#ifndef MICROPY_PY_ARRAY_SLICE_ASSIGN
-#define MICROPY_PY_ARRAY_SLICE_ASSIGN      (1)
-#endif
-
-#ifndef MICROPY_PY_SYS_STDFILES
-#define MICROPY_PY_SYS_STDFILES            (1)
-#endif
-
-#ifndef MICROPY_PY_UBINASCII
-#define MICROPY_PY_UBINASCII               (1)
-#endif
-
-// Board overridable port specific feature configuration.
-
-#ifndef MICROPY_PY_NRF
-#define MICROPY_PY_NRF                     (1)
-#endif
-
-// Board overridable hardware configuration.
-
-#ifndef MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE
-#define MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE (1)
-#endif
+#endif // MICROPY_INCLUDED_RP2_PENDSV_H
