@@ -10,6 +10,11 @@ def wifi():
     ssid = b"MicroPython-%s" % ubinascii.hexlify(ap_if.config("mac")[-3:])
     ap_if.config(ssid=ssid, security=network.AUTH_WPA_WPA2_PSK, key=b"micropythoN")
 
+def wifi_off():
+    ap_if = network.WLAN(network.AP_IF)
+    ap_if.active(False)
+    sta_if = network.WLAN(network.STA_IF)
+    sta_if.active(False)
 
 def check_bootsec():
     buf = bytearray(bdev.SEC_SIZE)
@@ -43,7 +48,7 @@ reprogram MicroPython.
 def setup():
     check_bootsec()
     print("Performing initial setup")
-    wifi()
+    wifi_off()
     uos.VfsLfs2.mkfs(bdev)
     vfs = uos.VfsLfs2(bdev)
     uos.mount(vfs, "/")
@@ -54,6 +59,13 @@ def setup():
 #import esp
 #esp.osdebug(None)
 import uos, machine
+
+import network
+ap_if = network.WLAN(network.AP_IF)
+ap_if.active(False)
+sta_if = network.WLAN(network.STA_IF)
+sta_if.active(False)
+
 #uos.dupterm(None, 1) # disable REPL on UART(0)
 import gc
 #import webrepl
