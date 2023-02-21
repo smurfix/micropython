@@ -17,3 +17,7 @@ require("urllib.urequest")
 # micropython-lib: umqtt
 require("umqtt.simple")
 require("umqtt.robust")
+
+# MoaT
+include("/src/moat/micro/moat/micro/_embed/lib")
+
