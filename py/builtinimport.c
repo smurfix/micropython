@@ -113,8 +113,8 @@ STATIC mp_import_stat_t stat_module(vstr_t *path) {
 // Given a top-level module name, try and find it in each of the sys.path
 // entries. Note: On success, the dest argument will be updated to the matching
 // path (i.e. "<entry>/mod_name(.py)").
-STATIC mp_import_stat_t stat_top_level(qstr mod_name, vstr_t *dest) {
-    DEBUG_printf("stat_top_level: '%s'\n", qstr_str(mod_name));
+STATIC mp_import_stat_t stat_find_module(qstr mod_name, vstr_t *dest) {
+    DEBUG_printf("stat_find_module: '%s'\n", qstr_str(mod_name));
     #if MICROPY_PY_SYS
     size_t path_num;
     mp_obj_t *path_items;
@@ -124,13 +124,25 @@ STATIC mp_import_stat_t stat_top_level(qstr mod_name, vstr_t *dest) {
     for (size_t i = 0; i < path_num; i++) {
         vstr_reset(dest);
         size_t p_len;
+        const char *dot, *rest;
         const char *p = mp_obj_str_get_data(path_items[i], &p_len);
         if (p_len > 0) {
             // Add the path separator (unless the entry is "", i.e. cwd).
             vstr_add_strn(dest, p, p_len);
             vstr_add_char(dest, PATH_SEP_CHAR[0]);
         }
-        vstr_add_str(dest, qstr_str(mod_name));
+        // Convert the dotted module name to a path.
+        rest = qstr_str(mod_name);
+        dot = strchr(rest, '.');
+        while (dot) {
+            vstr_add_strn(dest, rest, dot-rest);
+            vstr_add_char(dest, PATH_SEP_CHAR[0]);
+            rest = dot+1;
+            dot = strchr(rest, '.');
+        }
+        vstr_add_str(dest, rest);
+        vstr_str(dest)[vstr_len(dest)] = 0;
+        // was: vstr_add_str(dest, qstr_str(mod_name));
         mp_import_stat_t stat = stat_module(dest);
         if (stat != MP_IMPORT_STAT_NO_EXIST) {
             return stat;
@@ -391,20 +403,9 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
             return module_obj;
         }
 
-        // Next try the filesystem. Search for a directory or file relative to
-        // all the locations in sys.path.
-        stat = stat_top_level(level_mod_name, &path);
-
-        // If filesystem failed, now try and see if it matches an extensible
-        // built-in module.
-        if (stat == MP_IMPORT_STAT_NO_EXIST) {
-            module_obj = mp_module_get_builtin(level_mod_name, true);
-            if (module_obj != MP_OBJ_NULL) {
-                return module_obj;
-            }
-        }
     } else {
         DEBUG_printf("Searching for sub-module\n");
+
 
         #if MICROPY_MODULE_BUILTIN_SUBPACKAGES
         // If the outer module is a built-in (because its map is in ROM), then
@@ -420,19 +421,18 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
         }
         #endif
 
-        // If the outer module is a package, it will have __path__ set.
-        // We can use that as the path to search inside.
-        mp_obj_t dest[2];
-        mp_load_method_maybe(outer_module_obj, MP_QSTR___path__, dest);
-        if (dest[0] != MP_OBJ_NULL) {
-            // e.g. __path__ will be "<matched search path>/foo/bar"
-            vstr_add_str(&path, mp_obj_str_get_str(dest[0]));
+    }
 
-            // Add the level module name to the path to get "<matched search path>/foo/bar/baz".
-            vstr_add_char(&path, PATH_SEP_CHAR[0]);
-            vstr_add_str(&path, qstr_str(level_mod_name));
+    // Next try the filesystem. Search for a directory or file relative to
+    // all the locations in sys.path.
+    stat = stat_find_module(full_mod_name, &path);
 
-            stat = stat_module(&path);
+    // If filesystem failed, now try and see if it matches an extensible
+    // built-in module.
+    if (stat == MP_IMPORT_STAT_NO_EXIST) {
+        module_obj = mp_module_get_builtin(level_mod_name, true);
+        if (module_obj != MP_OBJ_NULL) {
+            return module_obj;
         }
     }
 
