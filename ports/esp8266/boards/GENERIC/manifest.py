@@ -19,5 +19,5 @@ require("umqtt.simple")
 require("umqtt.robust")
 
 # MoaT
-include("/src/moat/micro/moat/micro/_embed/lib")
+include("../../../../../../moat/micro/_embed/lib")
 
