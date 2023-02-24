@@ -9,7 +9,6 @@ package(
         "funcs.py",
         "lock.py",
         "stream.py",
-        "task.py",
         "taskgroup.py",
     ),
     base_path="..",
