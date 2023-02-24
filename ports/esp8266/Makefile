@@ -50,7 +50,7 @@ GIT_SUBMODULES += lib/axtls lib/berkeley-db-1.xx
 
 FWBIN = $(BUILD)/firmware.bin
 PORT ?= /dev/ttyACM0
-BAUD ?= 115200
+BAUD ?= 74880
 FLASH_MODE ?= qio
 FLASH_SIZE ?= detect
 CROSS_COMPILE ?= xtensa-lx106-elf-

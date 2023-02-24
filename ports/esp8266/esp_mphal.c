@@ -46,7 +46,7 @@ int uart_attached_to_dupterm;
 void mp_hal_init(void) {
     // ets_wdt_disable(); // it's a pain while developing
     mp_hal_rtc_init();
-    uart_init(UART_BIT_RATE_115200, UART_BIT_RATE_115200);
+    uart_init(UART_BIT_RATE_74880, UART_BIT_RATE_74880);
     uart_attached_to_dupterm = 0;
 }
 
