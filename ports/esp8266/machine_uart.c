@@ -202,7 +202,7 @@ static mp_obj_t mp_machine_uart_make_new(const mp_obj_type_t *type, size_t n_arg
     // create instance
     machine_uart_obj_t *self = mp_obj_malloc(machine_uart_obj_t, &machine_uart_type);
     self->uart_id = uart_id;
-    self->baudrate = 115200;
+    self->baudrate = 74880;
     self->bits = 8;
     self->parity = 0;
     self->stop = 1;
