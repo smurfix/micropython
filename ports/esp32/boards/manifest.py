@@ -12,3 +12,5 @@ require("onewire")
 require("umqtt.robust")
 require("umqtt.simple")
 require("upysh")
+
+include("../../../../../moat/micro/_embed/lib")
