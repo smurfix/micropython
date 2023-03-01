@@ -640,6 +640,41 @@ async def test_taskgroup_23():
         await asyncio.sleep(1.35)
         print("END", len(g._tasks))
 
+async def test_taskgroup_24():
+    async def die():
+        await asyncio.sleep(0.1)
+        raise ValueError()
+
+    async def nodie():
+        await asyncio.sleep(0.3)
+
+    try:
+        async with asyncio.TaskGroup() as g:
+            g.create_task(die())
+    except ValueError:
+        print("VAL")
+    else:
+        print("NO")
+
+    try:
+        async with asyncio.TaskGroup() as g:
+            g.create_task(die())
+            await asyncio.sleep(0.2)
+    except ValueError:
+        print("VAL")
+    else:
+        print("NO")
+
+    try:
+        async with asyncio.TaskGroup() as g:
+            g.create_task(die())
+            g.create_task(nodie())
+            await asyncio.sleep(0.2)
+    except ValueError:
+        print("VAL")
+    else:
+        print("NO")
+
 
 async def main():
     # Basics
@@ -689,6 +724,8 @@ async def main():
     await test_taskgroup_22()
     print("--- 23")
     await test_taskgroup_23()
+    print("--- 24")
+    await test_taskgroup_24()
     print("--- END")
 
 
