@@ -6,10 +6,13 @@ import sys, select
 
 # Import TaskQueue and Task, preferring built-in C code over Python code
 try:
-    from _uasyncio import TaskQueue, Task
+    from _fuasyncio import TaskQueue, Task
 except:
     from .task import TaskQueue, Task
 
+import sys
+def pr(*x):
+    print(*x, file=sys.stderr)
 
 ################################################################################
 # Exceptions
@@ -46,14 +49,17 @@ class SleepHandler:
         self.exc = StopIteration()
 
     def __iter__(self):
+        pr(212,cur_task.name)
         return self
 
     def __next__(self):
         if self.state is not None:
+            pr(211,cur_task.name)
             _task_queue.push(cur_task, self.state)
             self.state = None
             return None
         else:
+            pr(213,cur_task.name)
             self.exc.__traceback__ = None
             raise self.exc
 
@@ -125,10 +131,12 @@ class IOQueue:
             # print('poll', s, sm, ev)
             if ev & ~select.POLLOUT and sm[0] is not None:
                 # POLLIN or error
+                pr(214,sm[0].name)
                 _task_queue.push(sm[0])
                 sm[0] = None
             if ev & ~select.POLLIN and sm[1] is not None:
                 # POLLOUT or error
+                pr(215,sm[1].name)
                 _task_queue.push(sm[1])
                 sm[1] = None
             if sm[0] is None and sm[1] is None:
@@ -145,14 +153,16 @@ class IOQueue:
 
 # Ensure the awaitable is a task
 def _promote_to_task(aw):
-    return aw if isinstance(aw, Task) else create_task(aw)
+    return aw if isinstance(aw, Task) else create_task(aw, name="_promote")
 
 
 # Create and schedule a new task from a coroutine
-def create_task(coro):
+def create_task(coro, name=None):
     if not hasattr(coro, "send"):
         raise TypeError("coroutine expected")
     t = Task(coro, globals())
+    t.name=name
+    pr(215,"CRE",name)
     _task_queue.push(t)
     return t
 
@@ -163,9 +173,11 @@ def run_until_complete(main_task=None):
     excs_all = (CancelledError, Exception)  # To prevent heap allocation in loop
     excs_stop = (CancelledError, StopIteration)  # To prevent heap allocation in loop
     while True:
+        pr(201)
         # Wait until the head of _task_queue is ready to run
         dt = 1
         while dt > 0:
+            pr(202,dt)
             dt = -1
             t = _task_queue.peek()
             if t:
@@ -173,17 +185,20 @@ def run_until_complete(main_task=None):
                 dt = max(0, ticks_diff(t.ph_key, ticks()))
             elif not _io_queue.map:
                 # No tasks can be woken so finished running
+                pr(203,"EXIT")
                 return
             # print('(poll {})'.format(dt), len(_io_queue.map))
             _io_queue.wait_io_event(dt)
 
         # Get next task to run and continue it
         t = _task_queue.pop()
+        pr(230,"RUN",t.name)
         cur_task = t
         try:
             # Continue running the coroutine, it's responsible for rescheduling itself
             exc = t.data
             if not exc:
+                pr(232)
                 t.coro.send(None)
             else:
                 # If the task is finished and on the run queue and gets here, then it
@@ -191,16 +206,21 @@ def run_until_complete(main_task=None):
                 # raise StopIteration and the code below will catch this and run the
                 # call_exception_handler function.
                 t.data = None
+                pr(233,exc)
                 t.coro.throw(exc)
         except excs_all as er:
+            pr(234,er)
             # Check the task is not on any event queue
             assert t.data is None
             # This task is done, check if it's the main task and then loop should stop
             if t is main_task:
                 if isinstance(er, StopIteration):
+                    pr(235,er.value)
                     return er.value
+                pr(236)
                 raise er
             if t.state:
+                pr(237,t.state)
                 # Task was running but is now finished.
                 waiting = False
                 if t.state is True:
@@ -213,8 +233,11 @@ def run_until_complete(main_task=None):
                     waiting = True
                 else:
                     # Schedule any other tasks waiting on the completion of this task.
+                    pr(206)
                     while t.state.peek():
-                        _task_queue.push(t.state.pop())
+                        tt = t.state.pop()
+                        pr(207,"PUSHQ",tt.name)
+                        _task_queue.push(tt)
                         waiting = True
                     # "False" indicates that the task is complete and has been await'ed on.
                     t.state = False
@@ -222,8 +245,10 @@ def run_until_complete(main_task=None):
                     # An exception ended this detached task, so queue it for later
                     # execution to handle the uncaught exception if no other task retrieves
                     # the exception in the meantime (this is handled by Task.throw).
+                    pr(208,"PUSHX",t.name)
                     _task_queue.push(t)
                 # Save return value of coro to pass up to caller.
+                pr(238,er)
                 t.data = er
             elif t.state is None:
                 # Task is already finished and nothing await'ed on the task,
@@ -233,12 +258,16 @@ def run_until_complete(main_task=None):
                 Loop.call_exception_handler(_exc_context)
                 # XXX if we do await it later,
                 # leaving t.data as None will cause a fault.
+                pr(239,exc)
                 t.data = exc
+        else:
+            pr(241)
+        pr(240)
 
 
 # Create a new task from a coroutine and run it until it finishes
 def run(coro):
-    return run_until_complete(create_task(coro))
+    return run_until_complete(create_task(coro, name="main"))
 
 
 ################################################################################
@@ -255,12 +284,13 @@ _stop_task = None
 class Loop:
     _exc_handler = None
 
-    def create_task(coro):
-        return create_task(coro)
+    def create_task(coro, name=None):
+        return create_task(coro, name=name)
 
     def run_forever():
         global _stop_task
         _stop_task = Task(_stopper(), globals())
+        _stop_task.name="STOP"
         run_until_complete(_stop_task)
         # TODO should keep running until .stop() is called, even if there're no tasks left
 
@@ -270,6 +300,7 @@ class Loop:
     def stop():
         global _stop_task
         if _stop_task is not None:
+            pr(210,"STOP")
             _task_queue.push(_stop_task)
             # If stop() is called again, do nothing
             _stop_task = None
