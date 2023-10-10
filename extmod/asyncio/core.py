@@ -24,11 +24,25 @@ class BaseExceptionGroup(BaseException):
         else:
             for err in self.args[1]:
                 (a if typ(err) else b).append(err)
+        if a:
+            a = type(self)(self.args[0], a)
+        else:
+            a = None
+        if b:
+            b = type(self)(self.args[0], b)
+        else:
+            b = None
         return a, b
+    
+    @property
+    def exceptions(self):
+        return self.args[1]
 
 
 class ExceptionGroup(Exception):  # TODO cannot also inherit from BaseExceptionGroup
-    pass
+    @property
+    def exceptions(self):
+        return self.args[1]
 
 
 ExceptionGroup.split = BaseExceptionGroup.split
