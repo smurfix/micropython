@@ -93,6 +93,7 @@ mp_obj_t mp_vfs_posix_file_open(const mp_obj_type_t *type, mp_obj_t file_in, mp_
     }
 
     o->base.type = type;
+    o->fd = -1;
 
     mp_obj_t fid = file_in;
 
