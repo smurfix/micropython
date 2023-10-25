@@ -36,6 +36,10 @@
 #include "py/objint.h"
 #include "py/runtime.h"
 
+#if MICROPY_PY_BUILTINS_FLOAT
+#include <math.h>
+#endif
+
 // Helpers to work with binary-encoded data
 
 #ifndef alignof
@@ -74,11 +78,14 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
                 case 'S':
                     size = sizeof(void *);
                     break;
+                case 'e':
+                    size = 2;
+                    break;
                 case 'f':
-                    size = sizeof(float);
+                    size = 4;
                     break;
                 case 'd':
-                    size = sizeof(double);
+                    size = 8;
                     break;
             }
             break;
@@ -122,6 +129,10 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
                     align = alignof(void *);
                     size = sizeof(void *);
                     break;
+                case 'e':
+                    align = 2;
+                    size = 2;
+                    break;
                 case 'f':
                     align = alignof(float);
                     size = sizeof(float);
@@ -143,6 +154,130 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
     }
     return size;
 }
+
+#if MICROPY_PY_BUILTINS_FLOAT
+static float mp_decode_half(uint16_t hf)
+{
+    unsigned char sign;
+    int e;
+    unsigned int f;
+    float x;
+
+    /* First byte */
+    sign = (hf >> 15) & 1;
+    e = (hf >> 10) & 0x1F;
+    f = hf & 0x3FF;
+
+    if (e == 0x1f) {
+        if (f == 0) {
+            /* Infinity */
+            return sign ? strtof("-inf",NULL) : strtof("inf",NULL);
+        }
+        else {
+            /* NaN */
+            return sign ? strtof("-NAN",NULL) : strtof("NAN",NULL);
+        }
+    }
+
+    x = (float)f;
+
+    if (e == 0) {
+        e = -24;
+    }
+    else {
+        x += (float)1024.0;
+        e -= 25;
+    }
+    x = ldexpf(x, e);
+
+    if (sign)
+        x = -x;
+
+    return x;
+}
+
+static uint16_t mp_encode_half(float x)
+{
+    // copied from CPython.
+    unsigned char sign;
+    int e;
+    float f;
+    unsigned short bits;
+
+    if (x == (float)0.0) {
+        sign = (copysignf((float)1.0, x) == (float)-1.0);
+        e = 0;
+        bits = 0;
+    }
+    else if (isinf(x)) {
+        sign = (x < (float)0.0);
+        e = 0x1f;
+        bits = 0;
+    }
+    else if (isnan(x)) {
+        sign = (copysignf((float)1.0, x) == (float)-1.0);
+        e = 0x1f;
+        bits = 512;
+    }
+    else {
+        sign = (x < (float)0.0);
+        if (sign) {
+            x = -x;
+        }
+
+        f = frexpf(x, &e);
+        if (f < (float)0.5 || f >= (float)1.0) {
+            mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("float problem"));
+        }
+
+        /* Normalize f to be in the range [1.0, 2.0) */
+        f *= (float)2.0;
+        e--;
+
+        if (e >= 16) {
+            goto Overflow;
+        }
+        else if (e < -25) {
+            /* |x| < 2**-25. Underflow to zero. */
+            f = (float)0.0;
+            e = 0;
+        }
+        else if (e < -14) {
+            /* |x| < 2**-14. Gradual underflow */
+            f = (float)ldexpf(f, 14 + e);
+            e = 0;
+        }
+        else /* if (!(e == 0 && f == 0.0)) */ {
+            e += 15;
+            f -= (float)1.0; /* Get rid of leading 1 */
+        }
+        f = ldexpf(f,10);
+        bits = (unsigned short)f; /* Note the truncation */
+        assert(bits < 1024);
+        assert(e < 31);
+#if 0  // too involved for us
+        if ((f - (float)bits > (float)0.5) || ((f - (float)bits == (float)0.5) && (bits % 2 == 1))) {
+            ++bits;
+            if (bits == 1024) {
+                /* The carry propagated out of a string of 10 1 bits. */
+                bits = 0;
+                ++e;
+                if (e == 31)
+                    goto Overflow;
+            }
+        }
+#endif
+    }
+
+    bits |= (e << 10) | (sign << 15);
+    return bits;
+
+  Overflow:
+    mp_raise_msg(&mp_type_OverflowError, MP_ERROR_TEXT("too large"));
+}
+
+
+#endif
 
 mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index) {
     mp_int_t val = 0;
@@ -175,6 +310,8 @@ mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index) {
             return mp_obj_new_int_from_ull(((unsigned long long *)p)[index]);
         #endif
         #if MICROPY_PY_BUILTINS_FLOAT
+        case 'e':
+            return mp_obj_new_float_from_f(mp_decode_half(((uint16_t *)p)[index]));
         case 'f':
             return mp_obj_new_float_from_f(((float *)p)[index]);
         case 'd':
@@ -240,6 +377,8 @@ mp_obj_t mp_binary_get_val(char struct_type, char val_type, byte *p_base, byte *
         const char *s_val = (const char *)(uintptr_t)(mp_uint_t)val;
         return mp_obj_new_str(s_val, strlen(s_val));
     #if MICROPY_PY_BUILTINS_FLOAT
+    } else if (val_type == 'e') {
+        return mp_obj_new_float_from_f(mp_decode_half(val));
     } else if (val_type == 'f') {
         union {
             uint32_t i;
@@ -309,6 +448,9 @@ void mp_binary_set_val(char struct_type, char val_type, mp_obj_t val_in, byte *p
             val = (mp_uint_t)val_in;
             break;
         #if MICROPY_PY_BUILTINS_FLOAT
+        case 'e':
+            val = mp_encode_half(mp_obj_get_float_to_f(val_in));
+            break;
         case 'f': {
             union {
                 uint32_t i;
