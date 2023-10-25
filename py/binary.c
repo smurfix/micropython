@@ -156,26 +156,25 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
 }
 
 #if MICROPY_PY_BUILTINS_FLOAT
-static float mp_decode_half(uint16_t hf)
-{
+static float mp_decode_half(uint16_t hf) {
     union {
         uint32_t i;
         float f;
     } fpu;
     int e = (hf >> 10) & 0x1F;
 
-    if (e == 0x1F)
+    if (e == 0x1F) {
         e = 0xFF;
-    else if (e)
-        e += 127-15;  // Bias
+    } else if (e) {
+        e += 127 - 15;  // Bias
 
+    }
     fpu.i =
         ((hf & 0x8000) << 16) | (e << 23) | ((hf & 0x3FF) << 13);
     return fpu.f;
 }
 
-static uint16_t mp_encode_half(float x)
-{
+static uint16_t mp_encode_half(float x) {
     uint16_t bits;
     int e;
     uint16_t m;
@@ -188,10 +187,10 @@ static uint16_t mp_encode_half(float x)
     fpu.f = x;
     m = (fpu.i >> 13) & 0x3FF;  // this ignores rounding
     e = (fpu.i >> 23) & 0xFF;
-    if (e == 0xFF)
+    if (e == 0xFF) {
         e = 0x1F;
-    else if (e != 0) {
-        e -= 127-15;
+    } else if (e != 0) {
+        e -= 127 - 15;
         if (e < 0) { // underflow: denormalized, or zero
             if (e >= -11) {
                 m = (m | 0x400) >> -e;
