@@ -158,122 +158,54 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
 #if MICROPY_PY_BUILTINS_FLOAT
 static float mp_decode_half(uint16_t hf)
 {
-    unsigned char sign;
-    int e;
-    unsigned int f;
-    float x;
+    union {
+        uint32_t i;
+        float f;
+    } fpu;
+    int e = (hf >> 10) & 0x1F;
 
-    /* First byte */
-    sign = (hf >> 15) & 1;
-    e = (hf >> 10) & 0x1F;
-    f = hf & 0x3FF;
+    if (e == 0x1F)
+        e = 0xFF;
+    else if (e)
+        e += 127-15;  // Bias
 
-    if (e == 0x1f) {
-        if (f == 0) {
-            /* Infinity */
-            return sign ? strtof("-inf",NULL) : strtof("inf",NULL);
-        }
-        else {
-            /* NaN */
-            return sign ? strtof("-NAN",NULL) : strtof("NAN",NULL);
-        }
-    }
-
-    x = (float)f;
-
-    if (e == 0) {
-        e = -24;
-    }
-    else {
-        x += (float)1024.0;
-        e -= 25;
-    }
-    x = ldexpf(x, e);
-
-    if (sign)
-        x = -x;
-
-    return x;
+    fpu.i =
+        ((hf & 0x8000) << 16) | (e << 23) | ((hf & 0x3FF) << 13);
+    return fpu.f;
 }
 
 static uint16_t mp_encode_half(float x)
 {
-    // copied from CPython.
-    unsigned char sign;
+    uint16_t bits;
     int e;
-    float f;
-    unsigned short bits;
+    uint16_t m;
 
-    if (x == (float)0.0) {
-        sign = (copysignf((float)1.0, x) == (float)-1.0);
-        e = 0;
-        bits = 0;
-    }
-    else if (isinf(x)) {
-        sign = (x < (float)0.0);
-        e = 0x1f;
-        bits = 0;
-    }
-    else if (isnan(x)) {
-        sign = (copysignf((float)1.0, x) == (float)-1.0);
-        e = 0x1f;
-        bits = 512;
-    }
-    else {
-        sign = (x < (float)0.0);
-        if (sign) {
-            x = -x;
-        }
+    union {
+        uint32_t i;
+        float f;
+    } fpu;
 
-        f = frexpf(x, &e);
-        if (f < (float)0.5 || f >= (float)1.0) {
-            mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("float problem"));
-        }
-
-        /* Normalize f to be in the range [1.0, 2.0) */
-        f *= (float)2.0;
-        e--;
-
-        if (e >= 16) {
-            goto Overflow;
-        }
-        else if (e < -25) {
-            /* |x| < 2**-25. Underflow to zero. */
-            f = (float)0.0;
-            e = 0;
-        }
-        else if (e < -14) {
-            /* |x| < 2**-14. Gradual underflow */
-            f = (float)ldexpf(f, 14 + e);
-            e = 0;
-        }
-        else /* if (!(e == 0 && f == 0.0)) */ {
-            e += 15;
-            f -= (float)1.0; /* Get rid of leading 1 */
-        }
-        f = ldexpf(f,10);
-        bits = (unsigned short)f; /* Note the truncation */
-        assert(bits < 1024);
-        assert(e < 31);
-#if 0  // too involved for us
-        if ((f - (float)bits > (float)0.5) || ((f - (float)bits == (float)0.5) && (bits % 2 == 1))) {
-            ++bits;
-            if (bits == 1024) {
-                /* The carry propagated out of a string of 10 1 bits. */
-                bits = 0;
-                ++e;
-                if (e == 31)
-                    goto Overflow;
+    fpu.f = x;
+    m = (fpu.i >> 13) & 0x3FF;  // this ignores rounding
+    e = (fpu.i >> 23) & 0xFF;
+    if (e == 0xFF)
+        e = 0x1F;
+    else if (e != 0) {
+        e -= 127-15;
+        if (e < 0) { // underflow: denormalized, or zero
+            if (e >= -11) {
+                m = (m | 0x400) >> -e;
+            } else {
+                m = 0;
             }
+            e = 0;
+        } else if (e > 0x3f) { // overflow: infinity
+            e = 0x1F;
+            m = 0;
         }
-#endif
     }
-
-    bits |= (e << 10) | (sign << 15);
+    bits = ((fpu.i >> 16) & 0x8000) | (e << 10) | m;
     return bits;
-
-  Overflow:
-    mp_raise_msg(&mp_type_OverflowError, MP_ERROR_TEXT("too large"));
 }
 
 
