@@ -284,7 +284,9 @@ static void print_help(char **argv) {
         "Options:\n"
         "--version : show version information\n"
         "-h : print this help message\n"
+#if MICROPY_USE_READLINE == 1
         "-e : embedded mode: run 'boot.py', enable raw input\n"
+#endif
         "-i : enable inspection via REPL after running command/module/file\n"
         #if MICROPY_DEBUG_PRINTERS
         "-v : verbose (trace various operations); can be multiple\n"
@@ -590,7 +592,9 @@ MP_NOINLINE int main_(int argc, char **argv) {
     const int NOTHING_EXECUTED = -2;
     int ret = NOTHING_EXECUTED;
     bool inspect = false;
+#if MICROPY_USE_READLINE == 1
     bool embed = false;
+#endif
     for (int a = 1; a < argc; a++) {
         if (argv[a][0] == '-') {
             if (strcmp(argv[a], "-i") == 0) {
@@ -603,9 +607,11 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 set_sys_argv(argv, argc, a + 2); // Then what comes after the command
                 ret = do_str(argv[a + 1]);
                 break;
+#if MICROPY_USE_READLINE == 1
             } else if (strcmp(argv[a], "-e") == 0) {
                 embed = true;
                 pyexec_file_if_exists("boot.py");
+#endif
             } else if (strcmp(argv[a], "-m") == 0) {
                 if (a + 1 >= argc) {
                     return invalid_args();
@@ -705,6 +711,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
         inspect = true;
     }
     if (ret == NOTHING_EXECUTED || inspect) {
+#if MICROPY_USE_READLINE == 1
         if (embed) {
             // Run main.py if not told otherwise
             if (ret == NOTHING_EXECUTED) {
@@ -725,7 +732,9 @@ MP_NOINLINE int main_(int argc, char **argv) {
                     }
                 }
             }
-        } else if (isatty(0) || inspect) {
+        } else
+#endif
+        if (isatty(0) || inspect) {
             prompt_read_history();
             ret = do_repl();
             prompt_write_history();
