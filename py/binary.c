@@ -36,6 +36,10 @@
 #include "py/objint.h"
 #include "py/runtime.h"
 
+#if MICROPY_PY_BUILTINS_FLOAT
+#include <math.h>
+#endif
+
 // Helpers to work with binary-encoded data
 
 #ifndef alignof
@@ -74,11 +78,14 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
                 case 'S':
                     size = sizeof(void *);
                     break;
+                case 'e':
+                    size = 2;
+                    break;
                 case 'f':
-                    size = sizeof(float);
+                    size = 4;
                     break;
                 case 'd':
-                    size = sizeof(double);
+                    size = 8;
                     break;
             }
             break;
@@ -122,6 +129,10 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
                     align = alignof(void *);
                     size = sizeof(void *);
                     break;
+                case 'e':
+                    align = 2;
+                    size = 2;
+                    break;
                 case 'f':
                     align = alignof(float);
                     size = sizeof(float);
@@ -143,6 +154,61 @@ size_t mp_binary_get_size(char struct_type, char val_type, size_t *palign) {
     }
     return size;
 }
+
+#if MICROPY_PY_BUILTINS_FLOAT
+static float mp_decode_half(uint16_t hf) {
+    union {
+        uint32_t i;
+        float f;
+    } fpu;
+    int e = (hf >> 10) & 0x1F;
+
+    if (e == 0x1F) {
+        e = 0xFF;
+    } else if (e) {
+        e += 127 - 15;  // Bias
+
+    }
+    fpu.i =
+        ((hf & 0x8000) << 16) | (e << 23) | ((hf & 0x3FF) << 13);
+    return fpu.f;
+}
+
+static uint16_t mp_encode_half(float x) {
+    uint16_t bits;
+    int e;
+    uint16_t m;
+
+    union {
+        uint32_t i;
+        float f;
+    } fpu;
+
+    fpu.f = x;
+    m = (fpu.i >> 13) & 0x3FF;  // this ignores rounding
+    e = (fpu.i >> 23) & 0xFF;
+    if (e == 0xFF) {
+        e = 0x1F;
+    } else if (e != 0) {
+        e -= 127 - 15;
+        if (e < 0) { // underflow: denormalized, or zero
+            if (e >= -11) {
+                m = (m | 0x400) >> -e;
+            } else {
+                m = 0;
+            }
+            e = 0;
+        } else if (e > 0x3f) { // overflow: infinity
+            e = 0x1F;
+            m = 0;
+        }
+    }
+    bits = ((fpu.i >> 16) & 0x8000) | (e << 10) | m;
+    return bits;
+}
+
+
+#endif
 
 mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index) {
     mp_int_t val = 0;
@@ -175,6 +241,8 @@ mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index) {
             return mp_obj_new_int_from_ull(((unsigned long long *)p)[index]);
         #endif
         #if MICROPY_PY_BUILTINS_FLOAT
+        case 'e':
+            return mp_obj_new_float_from_f(mp_decode_half(((uint16_t *)p)[index]));
         case 'f':
             return mp_obj_new_float_from_f(((float *)p)[index]);
         case 'd':
@@ -240,6 +308,8 @@ mp_obj_t mp_binary_get_val(char struct_type, char val_type, byte *p_base, byte *
         const char *s_val = (const char *)(uintptr_t)(mp_uint_t)val;
         return mp_obj_new_str(s_val, strlen(s_val));
     #if MICROPY_PY_BUILTINS_FLOAT
+    } else if (val_type == 'e') {
+        return mp_obj_new_float_from_f(mp_decode_half(val));
     } else if (val_type == 'f') {
         union {
             uint32_t i;
@@ -309,6 +379,9 @@ void mp_binary_set_val(char struct_type, char val_type, mp_obj_t val_in, byte *p
             val = (mp_uint_t)val_in;
             break;
         #if MICROPY_PY_BUILTINS_FLOAT
+        case 'e':
+            val = mp_encode_half(mp_obj_get_float_to_f(val_in));
+            break;
         case 'f': {
             union {
                 uint32_t i;
