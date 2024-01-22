@@ -5,4 +5,4 @@ require("ds18x20")
 require("dht")
 require("neopixel")
 
-include("../../../../../moat/micro/_embed/lib")
+include("../../../../../moat/micro/_embed")
