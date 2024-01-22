@@ -6,7 +6,6 @@ import machine, rp2
 bdev = rp2.Flash()
 try:
     vfs = os.VfsFat(bdev)
-    os.mount(vfs, "/")
 except:
     os.VfsFat.mkfs(bdev)
     vfs = os.VfsFat(bdev)
