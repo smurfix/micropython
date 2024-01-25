@@ -57,16 +57,34 @@
 // uses mp_vfs_import_stat) to also search frozen modules. Given an exact
 // path to a file or directory (e.g. "foo/bar", foo/bar.py" or "foo/bar.mpy"),
 // will return whether the path is a file, directory, or doesn't exist.
-STATIC mp_import_stat_t stat_path(const char *path) {
+STATIC mp_import_stat_t stat_path(vstr_t *path) {
+    mp_import_stat_t stat;
+    const char *str = vstr_null_terminated_str(path);
     #if MICROPY_MODULE_FROZEN
     // Only try and load as a frozen module if it starts with .frozen/.
     const int frozen_path_prefix_len = strlen(MP_FROZEN_PATH_PREFIX);
-    if (strncmp(path, MP_FROZEN_PATH_PREFIX, frozen_path_prefix_len) == 0) {
+    if (strncmp(str, MP_FROZEN_PATH_PREFIX, frozen_path_prefix_len) == 0) {
         // Just stat (which is the return value), don't get the data.
-        return mp_find_frozen_module(path + frozen_path_prefix_len, NULL, NULL);
+        return mp_find_frozen_module(str + frozen_path_prefix_len, NULL, NULL);
     }
     #endif
-    return mp_import_stat(path);
+    stat = mp_import_stat(str);
+    if (stat == MP_IMPORT_STAT_DIR) {
+        // check whether there's a __init__.py in there somewhere
+        int len = path->len;
+        vstr_add_str(path, PATH_SEP_CHAR "__init__.py");
+        stat = mp_import_stat(vstr_null_terminated_str(path));
+        if (stat == MP_IMPORT_STAT_NO_EXIST) {
+            path->len = len;
+            vstr_add_str(path, PATH_SEP_CHAR "__init__.mpy");
+            stat = mp_import_stat(vstr_null_terminated_str(path));
+        }
+        path->len = len;
+        if (stat == MP_IMPORT_STAT_FILE)
+            return MP_IMPORT_STAT_DIR;
+        stat = MP_IMPORT_STAT_NO_EXIST;
+    }
+    return stat;
 }
 
 // Stat a given filesystem path to a .py file. If the file does not exist,
@@ -75,7 +93,7 @@ STATIC mp_import_stat_t stat_path(const char *path) {
 // files. This uses stat_path above, rather than mp_import_stat directly, so
 // that the .frozen path prefix is handled.
 STATIC mp_import_stat_t stat_file_py_or_mpy(vstr_t *path) {
-    mp_import_stat_t stat = stat_path(vstr_null_terminated_str(path));
+    mp_import_stat_t stat = stat_path(path);
     if (stat == MP_IMPORT_STAT_FILE) {
         return stat;
     }
@@ -85,7 +103,7 @@ STATIC mp_import_stat_t stat_file_py_or_mpy(vstr_t *path) {
     // Note: There's no point doing this if it's a frozen path, but adding the check
     // would be extra code, and no harm letting mp_find_frozen_module fail instead.
     vstr_ins_byte(path, path->len - 2, 'm');
-    stat = stat_path(vstr_null_terminated_str(path));
+    stat = stat_path(path);
     if (stat == MP_IMPORT_STAT_FILE) {
         return stat;
     }
@@ -99,7 +117,7 @@ STATIC mp_import_stat_t stat_file_py_or_mpy(vstr_t *path) {
 // result is a file, the path argument will be updated to include the file
 // extension.
 STATIC mp_import_stat_t stat_module(vstr_t *path) {
-    mp_import_stat_t stat = stat_path(vstr_null_terminated_str(path));
+    mp_import_stat_t stat = stat_path(path);
     DEBUG_printf("stat %s: %d\n", vstr_str(path), stat);
     if (stat == MP_IMPORT_STAT_DIR) {
         return stat;
@@ -502,8 +520,8 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
         if (stat_file_py_or_mpy(&path) == MP_IMPORT_STAT_FILE) {
             do_load(MP_OBJ_TO_PTR(module_obj), &path);
         } else {
-            // No-op. Nothing to load.
-            // mp_warning("%s is imported as namespace package", vstr_str(&path));
+            // this should not happen
+            mp_raise_msg(&mp_type_ImportError, MP_ERROR_TEXT("load error"));
         }
         // Remove /__init__.py suffix from path.
         path.len = orig_path_len;
