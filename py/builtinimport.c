@@ -521,7 +521,7 @@ STATIC mp_obj_t process_import_at_level(qstr full_mod_name, qstr level_mod_name,
             do_load(MP_OBJ_TO_PTR(module_obj), &path);
         } else {
             // this should not happen
-            mp_raise_msg(&mp_type_ImportError, MP_ERROR_TEXT("load error"));
+            // mp_raise_msg(&mp_type_ImportError, MP_ERROR_TEXT("load error"));
         }
         // Remove /__init__.py suffix from path.
         path.len = orig_path_len;
