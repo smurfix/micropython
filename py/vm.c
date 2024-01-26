@@ -1171,9 +1171,10 @@ unwind_return:
 
                 ENTRY(MP_BC_RAISE_FROM): {
                     MARK_EXC_IP_SELECTIVE();
-#if 0
-                    sp--;
-#endif
+                    mp_obj_t from_value = POP();
+                    if (from_value != mp_const_none) {
+                        // mp_warning(NULL, "exception chaining not supported");
+                    }
                     mp_obj_t obj = mp_make_raise_obj(TOP());
                     RAISE(obj);
                 }
