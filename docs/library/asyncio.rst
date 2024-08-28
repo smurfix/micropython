@@ -289,9 +289,7 @@ TCP stream connections
     accepted connection, *callback* will be called in a new task with
     2 arguments: reader and writer streams for the connection.
 
-    This function does **not** co-operate well with taskgroups.
-    If you use them, you should use a function like `run_server`
-    (supplied in ``examples/run_server.py``) instead.
+    If you use taskgroups, you should use `run_server` instead.
 
     If *ssl* is a `ssl.SSLContext` object, this context is used to create the transport.
 
