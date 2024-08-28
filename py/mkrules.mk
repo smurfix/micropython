@@ -176,7 +176,7 @@ $(HEADER_BUILD):
 ifneq ($(MICROPY_MPYCROSS_DEPENDENCY),)
 # to automatically build mpy-cross, if needed
 $(MICROPY_MPYCROSS_DEPENDENCY):
-	$(MAKE) -C $(abspath $(dir $@)..)
+	$(MAKE) -C "$(abspath $(dir $@)..)"
 endif
 
 ifneq ($(FROZEN_DIR),)
@@ -251,8 +251,8 @@ endif
 submodules:
 	$(ECHO) "Updating submodules: $(GIT_SUBMODULES)"
 ifneq ($(GIT_SUBMODULES),)
-	$(Q)git submodule sync $(addprefix $(TOP)/,$(GIT_SUBMODULES))
-	$(Q)git submodule update --init $(addprefix $(TOP)/,$(GIT_SUBMODULES))
+	$(Q)cd $(TOP) && git submodule sync $(GIT_SUBMODULES)
+	$(Q)cd $(TOP) && git submodule update --init $(GIT_SUBMODULES)
 endif
 .PHONY: submodules
 

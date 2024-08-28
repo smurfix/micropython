@@ -112,7 +112,7 @@ class Task
     ignore this exception.  Cleanup code may be run by trapping it, or via
     ``try ... finally``.
 
-class Taskgroup
+class TaskGroup
 ---------------
 
 See Nathaniel J. Smith's `essay on Structured Concurrency
@@ -124,10 +124,10 @@ for an introduction why you should use taskgroups instead of starting
     His "nursery" objects are called "taskgroup" in asyncio; the
     equivalent of a "go statement" is `Loop.create_task`.
 
-.. class:: Taskgroup()
+.. class:: TaskGroup()
 
     This object is an async context managed holding a group of tasks.
-    Tasks can be added to the group using `Taskgroup.create_task`.
+    Tasks can be added to the group using `TaskGroup.create_task`.
 
     If a task belonging to the group fails, the remaining tasks in the
     group are cancelled with an :exc:`asyncio.CancelledError` exception.
@@ -138,13 +138,13 @@ for an introduction why you should use taskgroups instead of starting
     the taskgroup's member tasks to end before proceeding. It does not
     cancel these tasks and does not prevent the creation of new tasks.
 
-.. method:: Taskgroup.create_task(coroutine)
+.. method:: TaskGroup.create_task(coroutine)
 
     Create a subtask that executes *coroutine* as part of this taskgroup.
 
     Returns the new task.
 
-.. method:: Taskgroup.cancel()
+.. method:: TaskGroup.cancel()
 
     Stop the taskgroup, i.e. cancel all its tasks.
 
@@ -219,8 +219,7 @@ class ThreadSafeFlag
 
     Create a new flag which can be used to synchronise a task with code running
     outside the asyncio loop, such as other threads, IRQs, or scheduler
-    callbacks.  Flags start in the cleared state.  The class does not currently
-    work under the Unix build of MicroPython.
+    callbacks.  Flags start in the cleared state.
 
 .. method:: ThreadSafeFlag.set()
 
@@ -290,7 +289,9 @@ TCP stream connections
     accepted connection, *callback* will be called in a new task with
     2 arguments: reader and writer streams for the connection.
 
-    If you use taskgroups, you should use `run_server` instead.
+    This function does **not** co-operate well with taskgroups.
+    If you use them, you should use a function like `run_server`
+    (supplied in ``examples/run_server.py``) instead.
 
     If *ssl* is a `ssl.SSLContext` object, this context is used to create the transport.
 

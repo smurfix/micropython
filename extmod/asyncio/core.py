@@ -198,6 +198,7 @@ def run_until_complete(main_task=None):
                 dt = max(0, ticks_diff(t.ph_key, ticks()))
             elif not _io_queue.map:
                 # No tasks can be woken so finished running
+                cur_task = None
                 return
             # print('(poll {})'.format(dt), len(_io_queue.map))
             _io_queue.wait_io_event(dt)
@@ -222,6 +223,7 @@ def run_until_complete(main_task=None):
             assert t.data is None
             # This task is done, check if it's the main task and then loop should stop
             if t is main_task:
+                cur_task = None
                 if isinstance(er, StopIteration):
                     return er.value
                 raise er
@@ -253,12 +255,14 @@ def run_until_complete(main_task=None):
             elif t.state is None:
                 # Task is already finished and nothing await'ed on the task,
                 # so call the exception handler.
+
+                # Save exception raised by the coro for later use.
+                t.data = exc
+
+                # Create exception context and call the exception handler.
                 _exc_context["exception"] = exc
                 _exc_context["future"] = t
                 Loop.call_exception_handler(_exc_context)
-                # XXX if we do await the task later,
-                # leaving t.data as None will cause a fault.
-                t.data = exc
 
 
 # Create a new task from a coroutine and run it until it finishes
@@ -274,6 +278,7 @@ async def _stopper():
     pass
 
 
+cur_task = None
 _stop_task = None
 
 
@@ -323,6 +328,8 @@ def get_event_loop(runq_len=0, waitq_len=0):
 
 
 def current_task():
+    if cur_task is None:
+        raise RuntimeError("no running event loop")
     return cur_task
 
 
