@@ -47,13 +47,6 @@
 #define MICROPY_EMIT_RV32                   (1)
 #endif
 
-// workaround for xtensa-esp32-elf-gcc esp-2020r3, which can generate wrong code for loops
-// see https://github.com/espressif/esp-idf/issues/9130
-// this was fixed in newer versions of the compiler by:
-//   "gas: use literals/const16 for xtensa loop relaxation"
-//   https://github.com/jcmvbkbc/binutils-gdb-xtensa/commit/403b0b61f6d4358aee8493cb1d11814e368942c9
-#define MICROPY_COMP_CONST_FOLDING_COMPILER_WORKAROUND (1)
-
 // optimisations
 #ifndef MICROPY_OPT_COMPUTED_GOTO
 #define MICROPY_OPT_COMPUTED_GOTO           (1)
@@ -155,6 +148,7 @@
 #define MICROPY_PY_MACHINE_UART             (1)
 #define MICROPY_PY_MACHINE_UART_INCLUDEFILE "ports/esp32/machine_uart.c"
 #define MICROPY_PY_MACHINE_UART_SENDBREAK   (1)
+#define MICROPY_PY_MACHINE_UART_IRQ         (1)
 #define MICROPY_PY_MACHINE_WDT              (1)
 #define MICROPY_PY_MACHINE_WDT_INCLUDEFILE  "ports/esp32/machine_wdt.c"
 #define MICROPY_PY_NETWORK (1)
@@ -258,6 +252,20 @@ typedef long mp_off_t;
 
 // board specifics
 #define MICROPY_PY_SYS_PLATFORM "esp32"
+
+// Enable stdio over native USB peripheral CDC via TinyUSB
+#ifndef MICROPY_HW_USB_CDC
+#define MICROPY_HW_USB_CDC                  (SOC_USB_OTG_SUPPORTED)
+#endif
+
+// Enable stdio over USB Serial/JTAG peripheral
+#ifndef MICROPY_HW_ESP_USB_SERIAL_JTAG
+#define MICROPY_HW_ESP_USB_SERIAL_JTAG      (SOC_USB_SERIAL_JTAG_SUPPORTED && !MICROPY_HW_USB_CDC)
+#endif
+
+#if MICROPY_HW_USB_CDC && MICROPY_HW_ESP_USB_SERIAL_JTAG
+#error "Invalid build config: Can't enable both native USB and USB Serial/JTAG peripheral"
+#endif
 
 // ESP32-S3 extended IO for 47 & 48
 #ifndef MICROPY_HW_ESP32S3_EXTENDED_IO
