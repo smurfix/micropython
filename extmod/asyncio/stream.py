@@ -216,7 +216,6 @@ async def start_server(cb, host, port, backlog=5, ssl=None):
     return srv
 
 
-<<<<<<< HEAD
 # Helper task to run a TCP stream server.
 # Callbacks (i.e. connection handlers) may run in a different taskgroup.
 async def run_server(cb, host, port, backlog=5, taskgroup=None, ssl=None):
@@ -258,6 +257,7 @@ async def _run_server(tg, s, cb, ssl):
             s2 = ssl.wrap_socket(s2, server_side=True, do_handshake_on_connect=False)
         s2s = Stream(s2, {"peername": addr})
         tg.create_task(cb(s2s, s2s))
+
 
 
 ################################################################################
