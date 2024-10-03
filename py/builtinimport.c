@@ -84,6 +84,7 @@ static mp_import_stat_t stat_path(vstr_t *path) {
             return MP_IMPORT_STAT_DIR;
         stat = MP_IMPORT_STAT_NO_EXIST;
     }
+    return stat;
 }
 
 // Stat a given filesystem path to a .py file. If the file does not exist,
