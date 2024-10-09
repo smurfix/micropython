@@ -1,0 +1,17 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "Battery Charging",
+        "USB"
+    ],
+    "images": [
+    ],
+    "mcu": "samd21",
+    "product": "Sparkfun Wireless Joystick",
+    "thumbnail": "",
+    "url": "https://www.sparkfun.com/products/14051",
+    "vendor": "Sparkfun"
+}
