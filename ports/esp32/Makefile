@@ -29,8 +29,13 @@ BUILD ?= build-$(BOARD)
 endif
 
 # Device serial settings.
-PORT ?= /dev/ttyUSB0
-BAUD ?= 460800
+ifneq ($(PORT),)
+PORT_ARG := -p $(PORT)
+endif
+ifneq ($(BAUD),)
+BAUD_ARG := -b $(BAUD)
+endif
+DEVICE += $(PORT_ARG) $(BAUD_ARG)
 
 PYTHON ?= python3
 
@@ -61,11 +66,12 @@ HELP_BUILD_ERROR ?= "See \033[1;31mhttps://github.com/micropython/micropython/wi
 IDF ?= idf.py
 
 define RUN_IDF_PY
-	$(IDF) $(IDFPY_FLAGS) -B $(BUILD) -p $(PORT) -b $(BAUD) $(1)
+	# $(IDF) $(IDFPY_FLAGS) -B $(BUILD) -p $(PORT) -b $(BAUD) $(1)
+	$(IDF) $(IDFPY_FLAGS) -B $(BUILD) $(1)
 endef
 
 all:
-	idf.py $(IDFPY_FLAGS) -B $(BUILD) build || (echo -e $(HELP_BUILD_ERROR); false)
+	$(IDF) $(IDFPY_FLAGS) -B $(BUILD) build || (echo -e $(HELP_BUILD_ERROR); false)
 	@$(PYTHON) makeimg.py \
 		$(BUILD)/sdkconfig \
 		$(BUILD)/bootloader/bootloader.bin \
@@ -80,13 +86,13 @@ clean:
 	$(call RUN_IDF_PY,fullclean)
 
 deploy:
-	$(call RUN_IDF_PY,flash)
+	$(call RUN_IDF_PY,$(DEVICE) flash)
 
 erase:
-	$(call RUN_IDF_PY,erase-flash)
+	$(call RUN_IDF_PY,$(DEVICE) erase-flash)
 
 monitor:
-	$(call RUN_IDF_PY,monitor)
+	$(call RUN_IDF_PY,$(DEVICE) monitor)
 
 size:
 	$(call RUN_IDF_PY,size)
@@ -103,6 +109,6 @@ size-files:
 # output and passes the list of submodules to py/mkrules.mk which does the
 # `git submodule init` on each.
 submodules:
-	@GIT_SUBMODULES=$$(idf.py $(IDFPY_FLAGS) -B $(BUILD)/submodules -D ECHO_SUBMODULES=1 build 2>&1 | \
+	@GIT_SUBMODULES=$$($(IDF) $(IDFPY_FLAGS) -B $(BUILD)/submodules -D ECHO_SUBMODULES=1 build 2>&1 | \
 	                  grep '^GIT_SUBMODULES=' | cut -d= -f2); \
 	$(MAKE) -f ../../py/mkrules.mk GIT_SUBMODULES="$${GIT_SUBMODULES}" submodules
