@@ -230,6 +230,8 @@ function ci_mimxrt_build {
     make ${MAKEOPTS} -C ports/mimxrt BOARD=MIMXRT1020_EVK
     make ${MAKEOPTS} -C ports/mimxrt BOARD=TEENSY40 submodules
     make ${MAKEOPTS} -C ports/mimxrt BOARD=TEENSY40
+    make ${MAKEOPTS} -C ports/mimxrt BOARD=MIMXRT1060_EVK submodules
+    make ${MAKEOPTS} -C ports/mimxrt BOARD=MIMXRT1060_EVK CFLAGS_EXTRA=-DMICROPY_HW_USB_MSC=1
 }
 
 ########################################################################################
@@ -266,6 +268,7 @@ function ci_powerpc_build {
 # ports/qemu
 
 function ci_qemu_setup_arm {
+    ci_mpy_format_setup
     ci_gcc_arm_setup
     sudo apt-get update
     sudo apt-get install qemu-system
@@ -273,6 +276,7 @@ function ci_qemu_setup_arm {
 }
 
 function ci_qemu_setup_rv32 {
+    ci_mpy_format_setup
     ci_gcc_riscv_setup
     sudo apt-get update
     sudo apt-get install qemu-system
@@ -284,14 +288,22 @@ function ci_qemu_build_arm {
     make ${MAKEOPTS} -C ports/qemu submodules
     make ${MAKEOPTS} -C ports/qemu CFLAGS_EXTRA=-DMP_ENDIANNESS_BIG=1
     make ${MAKEOPTS} -C ports/qemu clean
-    make ${MAKEOPTS} -C ports/qemu test
-    make ${MAKEOPTS} -C ports/qemu BOARD=SABRELITE test
+    make ${MAKEOPTS} -C ports/qemu test_full
+    make ${MAKEOPTS} -C ports/qemu BOARD=SABRELITE test_full
+
+    # Test building and running native .mpy with armv7m architecture.
+    ci_native_mpy_modules_build armv7m
+    make ${MAKEOPTS} -C ports/qemu test_natmod
 }
 
 function ci_qemu_build_rv32 {
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/qemu BOARD=VIRT_RV32 submodules
-    make ${MAKEOPTS} -C ports/qemu BOARD=VIRT_RV32 test
+    make ${MAKEOPTS} -C ports/qemu BOARD=VIRT_RV32 test_full
+
+    # Test building and running native .mpy with rv32imc architecture.
+    ci_native_mpy_modules_build rv32imc
+    make ${MAKEOPTS} -C ports/qemu BOARD=VIRT_RV32 test_natmod
 }
 
 ########################################################################################
@@ -330,7 +342,8 @@ function ci_rp2_build {
     make ${MAKEOPTS} -C ports/rp2 BOARD=RPI_PICO2 submodules
     make ${MAKEOPTS} -C ports/rp2 BOARD=RPI_PICO2
     make ${MAKEOPTS} -C ports/rp2 BOARD=W5100S_EVB_PICO submodules
-    make ${MAKEOPTS} -C ports/rp2 BOARD=W5100S_EVB_PICO
+    # This build doubles as a build test for disabling threads in the config
+    make ${MAKEOPTS} -C ports/rp2 BOARD=W5100S_EVB_PICO CFLAGS_EXTRA=-DMICROPY_PY_THREAD=0
 
     # Test building ninaw10 driver and NIC interface.
     make ${MAKEOPTS} -C ports/rp2 BOARD=ARDUINO_NANO_RP2040_CONNECT submodules
@@ -475,16 +488,18 @@ function ci_native_mpy_modules_build {
     else
         arch=$1
     fi
-    make -C examples/natmod/features1 ARCH=$arch
-    make -C examples/natmod/features2 ARCH=$arch
-    make -C examples/natmod/features3 ARCH=$arch
-    make -C examples/natmod/features4 ARCH=$arch
-    make -C examples/natmod/btree ARCH=$arch
-    make -C examples/natmod/deflate ARCH=$arch
-    make -C examples/natmod/framebuf ARCH=$arch
-    make -C examples/natmod/heapq ARCH=$arch
-    make -C examples/natmod/random ARCH=$arch
-    make -C examples/natmod/re ARCH=$arch
+    for natmod in features1 features3 features4 deflate framebuf heapq random re
+    do
+        make -C examples/natmod/$natmod ARCH=$arch
+    done
+    # btree requires thread local storage support on rv32imc.
+    if [ $arch != rv32imc ]; then
+        make -C examples/natmod/btree ARCH=$arch
+    fi
+    # features2 requires soft-float on armv7m and rv32imc.
+    if [ $arch != rv32imc ] && [ $arch != armv7m ]; then
+        make -C examples/natmod/features2 ARCH=$arch
+    fi
 }
 
 function ci_native_mpy_modules_32bit_build {
@@ -651,9 +666,6 @@ function ci_unix_settrace_stackless_run_tests {
 }
 
 function ci_unix_macos_build {
-    # Install pkg-config to configure libffi paths.
-    brew install pkg-config
-
     make ${MAKEOPTS} -C mpy-cross
     make ${MAKEOPTS} -C ports/unix submodules
     #make ${MAKEOPTS} -C ports/unix deplibs
@@ -685,10 +697,8 @@ function ci_unix_qemu_mips_build {
 }
 
 function ci_unix_qemu_mips_run_tests {
-    # Issues with MIPS tests:
-    # - (i)listdir does not work, it always returns the empty list (it's an issue with the underlying C call)
     file ./ports/unix/build-coverage/micropython
-    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython ./run-tests.py --exclude 'vfs_posix.*\.py')
+    (cd tests && MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython ./run-tests.py)
 }
 
 function ci_unix_qemu_arm_setup {
@@ -752,14 +762,27 @@ ZEPHYR_SDK_VERSION=0.16.8
 ZEPHYR_VERSION=v3.7.0
 
 function ci_zephyr_setup {
-    docker pull zephyrprojectrtos/ci:${ZEPHYR_DOCKER_VERSION}
+    IMAGE=ghcr.io/zephyrproject-rtos/ci:${ZEPHYR_DOCKER_VERSION}
+
+    docker pull ${IMAGE}
+
+    # Directories cached by GitHub Actions, mounted
+    # into the container
+    ZEPHYRPROJECT_DIR="$(pwd)/zephyrproject"
+    CCACHE_DIR="$(pwd)/.ccache"
+
+    mkdir -p "${ZEPHYRPROJECT_DIR}"
+    mkdir -p "${CCACHE_DIR}"
+
     docker run --name zephyr-ci -d -it \
       -v "$(pwd)":/micropython \
+      -v "${ZEPHYRPROJECT_DIR}":/zephyrproject \
+      -v "${CCACHE_DIR}":/root/.cache/ccache \
       -e ZEPHYR_SDK_INSTALL_DIR=/opt/toolchains/zephyr-sdk-${ZEPHYR_SDK_VERSION} \
       -e ZEPHYR_TOOLCHAIN_VARIANT=zephyr \
       -e ZEPHYR_BASE=/zephyrproject/zephyr \
       -w /micropython/ports/zephyr \
-      zephyrprojectrtos/ci:${ZEPHYR_DOCKER_VERSION}
+      ${IMAGE}
     docker ps -a
 
     # qemu-system-arm is needed to run the test suite.
@@ -785,5 +808,5 @@ function ci_zephyr_run_tests {
     docker exec zephyr-ci west build -p auto -b qemu_cortex_m3 -- -DCONF_FILE=prj_minimal.conf
     # Issues with zephyr tests:
     # - inf_nan_arith fails pow(-1, nan) test
-    (cd tests && ./run-tests.py --target minimal --device execpty:"qemu-system-arm -cpu cortex-m3 -machine lm3s6965evb -nographic -monitor null -serial pty -kernel ../ports/zephyr/build/zephyr/zephyr.elf" -d basics float --exclude inf_nan_arith)
+    (cd tests && ./run-tests.py -t execpty:"qemu-system-arm -cpu cortex-m3 -machine lm3s6965evb -nographic -monitor null -serial pty -kernel ../ports/zephyr/build/zephyr/zephyr.elf" -d basics float --exclude inf_nan_arith)
 }

@@ -196,6 +196,8 @@ static void mp_machine_lightsleep(size_t n_args, const mp_obj_t *args) {
         #endif
         xosc_dormant();
     } else {
+        uint32_t save_sleep_en0 = clocks_hw->sleep_en0;
+        uint32_t save_sleep_en1 = clocks_hw->sleep_en1;
         bool timer3_enabled = irq_is_enabled(3);
 
         const uint32_t alarm_num = 3;
@@ -228,7 +230,7 @@ static void mp_machine_lightsleep(size_t n_args, const mp_obj_t *args) {
             #if PICO_RP2040
             clocks_hw->sleep_en1 |= CLOCKS_SLEEP_EN1_CLK_USB_USBCTRL_BITS;
             #elif PICO_RP2350
-            clocks_hw->sleep_en1 |= CLOCKS_SLEEP_EN1_CLK_SYS_USBCTRL_BITS;
+            clocks_hw->sleep_en1 |= CLOCKS_SLEEP_EN1_CLK_USB_BITS;
             #else
             #error Unknown processor
             #endif
@@ -251,8 +253,8 @@ static void mp_machine_lightsleep(size_t n_args, const mp_obj_t *args) {
         if (!timer3_enabled) {
             irq_set_enabled(irq_num, false);
         }
-        clocks_hw->sleep_en0 |= ~(0u);
-        clocks_hw->sleep_en1 |= ~(0u);
+        clocks_hw->sleep_en0 = save_sleep_en0;
+        clocks_hw->sleep_en1 = save_sleep_en1;
     }
 
     // Enable ROSC.

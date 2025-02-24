@@ -187,6 +187,11 @@ else ifneq ($(shell cat $(CONFVARS_FILE)), $(FROZEN_MANIFEST) $(UART_OS))
 $(shell echo $(FROZEN_MANIFEST) $(UART_OS) > $(CONFVARS_FILE))
 endif
 
+ESPTOOL := $(shell command -v esptool 2> /dev/null)
+ifndef ESPTOOL
+ESPTOOL = esptool.py
+endif
+
 $(BUILD)/uart.o: $(CONFVARS_FILE)
 
 FROZEN_EXTRA_DEPS = $(CONFVARS_FILE)

@@ -2,6 +2,8 @@
 #
 # This is a simple, convenience wrapper around idf.py (which uses cmake).
 
+include ../../py/verbose.mk
+
 # Select the board to build for:
 ifdef BOARD_DIR
 # Custom board path - remove trailing slash and get the final component of
@@ -61,6 +63,10 @@ ifdef MICROPY_PREVIEW_VERSION_2
 	IDFPY_FLAGS += -D MICROPY_PREVIEW_VERSION_2=1
 endif
 
+ifeq ($(BUILD_VERBOSE),1)
+	IDFPY_FLAGS += --verbose
+endif
+
 HELP_BUILD_ERROR ?= "See \033[1;31mhttps://github.com/micropython/micropython/wiki/Build-Troubleshooting\033[0m"
 
 IDF ?= idf.py
@@ -111,4 +117,4 @@ size-files:
 submodules:
 	@GIT_SUBMODULES=$$($(IDF) $(IDFPY_FLAGS) -B $(BUILD)/submodules -D ECHO_SUBMODULES=1 build 2>&1 | \
 	                  grep '^GIT_SUBMODULES=' | cut -d= -f2); \
-	$(MAKE) -f ../../py/mkrules.mk GIT_SUBMODULES="$${GIT_SUBMODULES}" submodules
+	$(MAKE) -f ../../py/mkrules.mk GIT_SUBMODULES="$${GIT_SUBMODULES}" GIT_SUBMODULES_FAIL_IF_EMPTY=1 submodules

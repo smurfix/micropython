@@ -60,7 +60,7 @@ list(APPEND MICROPY_SOURCE_DRIVERS
 )
 
 string(CONCAT GIT_SUBMODULES "${GIT_SUBMODULES} " lib/tinyusb)
-if(MICROPY_PY_TINYUSB)
+if(MICROPY_PY_TINYUSB AND NOT ECHO_SUBMODULES)
     set(TINYUSB_SRC "${MICROPY_DIR}/lib/tinyusb/src")
     string(TOUPPER OPT_MCU_${IDF_TARGET} tusb_mcu)
 
@@ -78,6 +78,7 @@ if(MICROPY_PY_TINYUSB)
         ${MICROPY_DIR}/shared/tinyusb/mp_usbd.c
         ${MICROPY_DIR}/shared/tinyusb/mp_usbd_cdc.c
         ${MICROPY_DIR}/shared/tinyusb/mp_usbd_descriptor.c
+        ${MICROPY_DIR}/shared/tinyusb/mp_usbd_runtime.c
     )
 
     list(APPEND MICROPY_INC_TINYUSB
@@ -242,12 +243,19 @@ target_include_directories(${MICROPY_TARGET} PUBLIC
 target_link_libraries(${MICROPY_TARGET} micropy_extmod_btree)
 target_link_libraries(${MICROPY_TARGET} usermod)
 
-# Enable the panic handler wrapper
-idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=esp_panic_handler" APPEND)
+# Extra linker options
+# (when wrap symbols are in standalone files, --undefined ensures
+# the linker doesn't skip that file.)
+target_link_options(${MICROPY_TARGET} PUBLIC
+  # Patch LWIP memory pool allocators (see lwip_patch.c)
+  -Wl,--undefined=memp_malloc
+  -Wl,--wrap=memp_malloc
+  -Wl,--wrap=memp_free
 
-# Patch LWIP memory pool allocators (see lwip_patch.c)
-idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=memp_malloc" APPEND)
-idf_build_set_property(LINK_OPTIONS "-Wl,--wrap=memp_free" APPEND)
+  # Enable the panic handler wrapper
+  -Wl,--undefined=esp_panic_handler
+  -Wl,--wrap=esp_panic_handler
+)
 
 # Collect all of the include directories and compile definitions for the IDF components,
 # including those added by the IDF Component Manager via idf_components.yaml.

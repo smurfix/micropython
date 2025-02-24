@@ -34,8 +34,11 @@
 #include "py/mphal.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
-#include "esp_clk_tree.h"
 #include "soc/gpio_sig_map.h"
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+#include "esp_clk_tree.h"
+#endif
 
 #define PWM_DBG(...)
 // #define PWM_DBG(...) mp_printf(&mp_plat_print, __VA_ARGS__); mp_printf(&mp_plat_print, "\n");
@@ -209,6 +212,7 @@ static void configure_channel(machine_pwm_obj_t *self) {
 }
 
 static void set_freq(machine_pwm_obj_t *self, unsigned int freq, ledc_timer_config_t *timer) {
+    esp_err_t err;
     if (freq != timer->freq_hz) {
         // Configure the new frequency and resolution
         timer->freq_hz = freq;
@@ -228,10 +232,11 @@ static void set_freq(machine_pwm_obj_t *self, unsigned int freq, ledc_timer_conf
         }
         #endif
         uint32_t src_clk_freq = 0;
-        esp_err_t err = esp_clk_tree_src_get_freq_hz(timer->clk_cfg, ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED, &src_clk_freq);
+        err = esp_clk_tree_src_get_freq_hz(timer->clk_cfg, ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED, &src_clk_freq);
         if (err != ESP_OK) {
             mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("unable to query source clock frequency %d"), (int)timer->clk_cfg);
         }
+
         timer->duty_resolution = ledc_find_suitable_duty_resolution(src_clk_freq, timer->freq_hz);
 
         // Set frequency
