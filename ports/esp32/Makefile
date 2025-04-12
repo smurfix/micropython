@@ -69,12 +69,14 @@ endif
 
 HELP_BUILD_ERROR ?= "See \033[1;31mhttps://github.com/micropython/micropython/wiki/Build-Troubleshooting\033[0m"
 
+IDF ?= idf.py
+
 define RUN_IDF_PY
-	$(Q)idf.py $(IDFPY_FLAGS) -B $(BUILD) $(1)
+	$(Q)$(IDF) $(IDFPY_FLAGS) -B $(BUILD) -p $(PORT) -b $(BAUD) $(1)
 endef
 
 all:
-	$(Q)idf.py $(IDFPY_FLAGS) -B $(BUILD) build || (echo -e $(HELP_BUILD_ERROR); false)
+	$(Q)$(IDF) $(IDFPY_FLAGS) -B $(BUILD) build || (echo -e $(HELP_BUILD_ERROR); false)
 	$(Q)$(PYTHON) makeimg.py \
 		$(BUILD)/sdkconfig \
 		$(BUILD)/bootloader/bootloader.bin \
@@ -113,3 +115,7 @@ size-files:
 # set correctly if not all submodules are loaded yet.
 submodules:
 	$(Q)IDF_COMPONENT_MANAGER=0 idf.py $(IDFPY_FLAGS) -B $(BUILD)/submodules -D UPDATE_SUBMODULES=1 reconfigure
+	
+	# $(Q)GIT_SUBMODULES=$$(IDF_COMPONENT_MANAGER=0 $(IDF) $(IDFPY_FLAGS) -B $(BUILD)/submodules -D ECHO_SUBMODULES=1 build 2>&1 | \
+	                  grep '^GIT_SUBMODULES=' | cut -d= -f2); \
+	# $(Q)$(MAKE) -f ../../py/mkrules.mk GIT_SUBMODULES="$${GIT_SUBMODULES}" GIT_SUBMODULES_FAIL_IF_EMPTY=1 submodules

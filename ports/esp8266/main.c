@@ -68,7 +68,7 @@ static void mp_reset(void) {
     {
         mp_obj_t args[2];
         args[0] = MP_OBJ_NEW_SMALL_INT(0);
-        args[1] = MP_OBJ_NEW_SMALL_INT(115200);
+        args[1] = MP_OBJ_NEW_SMALL_INT(74880);
         args[0] = MP_OBJ_TYPE_GET_SLOT(&machine_uart_type, make_new)(&machine_uart_type, 2, 0, args);
         args[1] = MP_OBJ_NEW_SMALL_INT(1);
         mp_os_dupterm_obj.fun.var(2, args);

@@ -4,7 +4,6 @@ except ImportError:
     print("SKIP")
     raise SystemExit
 
-
 # Sample of public symbols we expect to see from `asyncio`. Verify they're all
 # available on `uasyncio`.
 expected = [

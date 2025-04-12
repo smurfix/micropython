@@ -123,6 +123,11 @@ class TaskGroup:
             raise self._base_error
 
         if et is not None and et is not core.CancelledError:
+            if _DEBUG:
+                import sys
+
+                print("*** ERR ", repr(exc), file=sys.stderr)
+                sys.print_exception(exc, sys.stderr)
             self._errors.append(exc)
 
         if self._errors:
@@ -139,7 +144,7 @@ class TaskGroup:
                     import sys
 
                     for err in errors:
-                        sys.print_exception(err)
+                        sys.print_exception(err, sys.stderr)
                 EGroup = core.ExceptionGroup
                 for err in errors:
                     if not isinstance(err, Exception):
@@ -176,7 +181,8 @@ class TaskGroup:
         try:
             self._parent_task.cancel()
         except RuntimeError:
-            raise core.CancelledError()
+            self._abort()
+            self._parent_cancel_requested = True
 
     def _is_base_error(self, exc: BaseException) -> bool:
         # KeyboardInterrupt and SystemExit are "special": they should
@@ -204,7 +210,8 @@ class TaskGroup:
             if _DEBUG:
                 import sys
 
-                sys.print_exception(e)
+                print("*** ERR ", repr(e), file=sys.stderr)
+                sys.print_exception(e, sys.stderr)
 
             exc = e
         else:
@@ -214,10 +221,10 @@ class TaskGroup:
             if self._on_completed is not None and not self._tasks:
                 self._on_completed.set()
 
-        if type(exc) is core.CancelledError:
+        if exc is None:
             return
 
-        if exc is None:
+        if type(exc) is core.CancelledError:
             return
 
         self._errors.append(exc)

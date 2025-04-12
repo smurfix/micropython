@@ -185,7 +185,7 @@ __Serial prompt__
 
 You can access the REPL (Python prompt) over UART (the same as used for
 programming).
-- Baudrate: 115200
+- Baudrate: 74880
 
 Run `help()` for some basic information.
 

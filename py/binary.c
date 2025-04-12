@@ -36,6 +36,10 @@
 #include "py/objint.h"
 #include "py/runtime.h"
 
+#if MICROPY_PY_BUILTINS_FLOAT
+#include <math.h>
+#endif
+
 // Helpers to work with binary-encoded data
 
 #ifndef alignof
@@ -275,6 +279,8 @@ mp_obj_t mp_binary_get_val_array(char typecode, void *p, size_t index) {
             return mp_obj_new_int_from_ull(((unsigned long long *)p)[index]);
         #endif
         #if MICROPY_PY_BUILTINS_FLOAT
+        case 'e':
+            return mp_obj_new_float_from_f(mp_decode_half_float(((uint16_t *)p)[index]));
         case 'f':
             return mp_obj_new_float_from_f(((float *)p)[index]);
         case 'd':

@@ -9,6 +9,8 @@ BOARD ?= ESP8266_GENERIC
 BOARD_DIR ?= boards/$(BOARD)
 endif
 
+ESPTOOL ?= esptool.py
+
 ifeq ($(wildcard $(BOARD_DIR)/.),)
 ifeq ($(findstring boards/GENERIC,$(BOARD_DIR)),boards/GENERIC)
 $(warning The GENERIC* boards have been renamed to ESP8266_GENERIC)
@@ -61,7 +63,7 @@ GIT_SUBMODULES += lib/axtls lib/berkeley-db-1.xx
 
 FWBIN = $(BUILD)/firmware.bin
 PORT ?= /dev/ttyACM0
-BAUD ?= 115200
+BAUD ?= 74880
 FLASH_MODE ?= qio
 FLASH_SIZE ?= detect
 CROSS_COMPILE ?= xtensa-lx106-elf-
