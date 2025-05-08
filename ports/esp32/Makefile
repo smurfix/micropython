@@ -72,12 +72,12 @@ HELP_BUILD_ERROR ?= "See \033[1;31mhttps://github.com/micropython/micropython/wi
 IDF ?= idf.py
 
 define RUN_IDF_PY
-	$(IDF) $(IDFPY_FLAGS) -B $(BUILD) $(1)
+	$(Q)$(IDF) $(IDFPY_FLAGS) -B $(BUILD) $(1)
 endef
 
 all:
-	idf.py $(IDFPY_FLAGS) -B $(BUILD) build || (echo -e $(HELP_BUILD_ERROR); false)
-	@$(PYTHON) makeimg.py \
+	$(Q)idf.py $(IDFPY_FLAGS) -B $(BUILD) build || (echo -e $(HELP_BUILD_ERROR); false)
+	$(Q)$(PYTHON) makeimg.py \
 		$(BUILD)/sdkconfig \
 		$(BUILD)/bootloader/bootloader.bin \
 		$(BUILD)/partition_table/partition-table.bin \
@@ -108,12 +108,10 @@ size-components:
 size-files:
 	$(call RUN_IDF_PY,size-files)
 
-# Running the build with ECHO_SUBMODULES set will trigger py/mkrules.cmake to
-# print out the value of the GIT_SUBMODULES variable, prefixed with
-# "GIT_SUBMODULES", and then abort. This extracts out that line from the idf.py
-# output and passes the list of submodules to py/mkrules.mk which does the
-# `git submodule init` on each.
+# Run idf.py with the UPDATE_SUBMODULES flag to update
+# necessary submodules for this board.
+#
+# This is done in a dedicated build directory as some CMake cache values are not
+# set correctly if not all submodules are loaded yet.
 submodules:
-	@GIT_SUBMODULES=$$(idf.py $(IDFPY_FLAGS) -B $(BUILD)/submodules -D ECHO_SUBMODULES=1 build 2>&1 | \
-	                  grep '^GIT_SUBMODULES=' | cut -d= -f2); \
-	$(MAKE) -f ../../py/mkrules.mk GIT_SUBMODULES="$${GIT_SUBMODULES}" submodules
+	$(Q)IDF_COMPONENT_MANAGER=0 idf.py $(IDFPY_FLAGS) -B $(BUILD)/submodules -D UPDATE_SUBMODULES=1 reconfigure

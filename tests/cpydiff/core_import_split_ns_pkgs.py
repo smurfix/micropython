@@ -4,6 +4,7 @@ description: MicroPython doesn't support namespace packages split across filesys
 cause: MicroPython's import system is highly optimized for simplicity, minimal memory usage, and minimal filesystem search overhead.
 workaround: Not required.
 """
+
 import sys
 
 sys.path.append(sys.path[1] + "/modules")

@@ -136,6 +136,7 @@ SRC_C = \
 	fatfs_port.c \
 	posix_helpers.c \
 	hspi.c \
+	vfs_rom_ioctl.c \
 	$(wildcard $(BOARD_DIR)/*.c) \
 
 ifeq ($(MICROPY_PY_ESPNOW),1)
@@ -185,6 +186,11 @@ $(shell $(MKDIR) -p $(BUILD))
 $(shell echo $(FROZEN_MANIFEST) $(UART_OS) > $(CONFVARS_FILE))
 else ifneq ($(shell cat $(CONFVARS_FILE)), $(FROZEN_MANIFEST) $(UART_OS))
 $(shell echo $(FROZEN_MANIFEST) $(UART_OS) > $(CONFVARS_FILE))
+endif
+
+ESPTOOL := $(shell command -v esptool 2> /dev/null)
+ifndef ESPTOOL
+ESPTOOL = esptool.py
 endif
 
 $(BUILD)/uart.o: $(CONFVARS_FILE)
