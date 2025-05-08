@@ -195,6 +195,15 @@
 #define TRACE_TICK(current_ip, current_sp, is_exception)
 #endif // MICROPY_PY_SYS_SETTRACE
 
+static mp_obj_exception_t *get_native_exception(mp_obj_t self_in) {
+    assert(mp_obj_is_exception_instance(self_in));
+    if (mp_obj_is_native_exception_instance(self_in)) {
+        return MP_OBJ_TO_PTR(self_in);
+    } else {
+        return MP_OBJ_TO_PTR(((mp_obj_instance_t *)MP_OBJ_TO_PTR(self_in))->subobj[0]);
+    }
+}
+
 // fastn has items in reverse order (fastn[0] is local[0], fastn[-1] is local[1], etc)
 // sp points to bottom of stack which grows up
 // returns:
@@ -1412,6 +1421,7 @@ unwind_loop:
             // - exceptions re-raised by END_FINALLY
             // - exceptions re-raised explicitly by "raise"
             if (nlr.ret_val != &mp_const_GeneratorExit_obj
+                && get_native_exception(MP_OBJ_FROM_PTR(nlr.ret_val)) != (mp_obj_exception_t *)&mp_base_init_wrapper_obj
                 && *code_state->ip != MP_BC_END_FINALLY
                 && *code_state->ip != MP_BC_RAISE_LAST) {
                 const byte *ip = code_state->fun_bc->bytecode;

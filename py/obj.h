@@ -912,6 +912,7 @@ extern const struct _mp_obj_dict_t mp_const_empty_dict_obj;
 extern const struct _mp_obj_singleton_t mp_const_ellipsis_obj;
 extern const struct _mp_obj_singleton_t mp_const_notimplemented_obj;
 extern const struct _mp_obj_exception_t mp_const_GeneratorExit_obj;
+extern const struct _mp_obj_fun_builtin_var_t mp_base_init_wrapper_obj;
 
 // Fixed empty map. Useful when calling keyword-receiving functions
 // without any keywords from C, etc.
