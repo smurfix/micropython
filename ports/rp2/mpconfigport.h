@@ -69,7 +69,7 @@
 
 // Number of bytes of flash to allocate to the ROMFS partition.
 #ifndef MICROPY_HW_ROMFS_BYTES
-#define MICROPY_HW_ROMFS_BYTES (0)
+#define MICROPY_HW_ROMFS_BYTES (200*1024)
 #endif
 
 // Number of bytes of flash to allocate to read/write filesystem storage.
