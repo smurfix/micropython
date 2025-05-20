@@ -146,6 +146,8 @@ def run(args, mpy_cross=None):
     except OSError:
         pass
 
+    if isinstance(args,str):
+        args=[args]
     try:
         return subprocess.check_output([mpy_cross] + args, stderr=subprocess.STDOUT).decode()
     except subprocess.CalledProcessError as er:

@@ -109,8 +109,7 @@ def copy_recursively(vfs, src_dir, print_prefix, mpy_cross):
                 if not os.path.isfile(src_name_mpy):
                     if mpy_cross_run is not None:
                         did_mpy = True
-                        proc = mpy_cross_run(src_name)
-                        proc.wait()
+                        mpy_cross_run(src_name)
                     else:
                         mpy_cross_missed += 1
             if did_mpy:
