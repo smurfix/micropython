@@ -803,7 +803,7 @@ soft_reset_exit:
     #endif
 
     #if MICROPY_PY_BLUETOOTH
-    void mp_bluetooth_deinit(void);
+    int mp_bluetooth_deinit(void);
     mp_bluetooth_deinit();
     #endif
 

@@ -58,7 +58,7 @@
 #define UART_IRQ_RXIDLE (0x1000)
 #define UART_IRQ_BREAK (1 << UART_BREAK)
 #define MP_UART_ALLOWED_FLAGS (UART_IRQ_RX | UART_IRQ_RXIDLE | UART_IRQ_BREAK)
-#define RXIDLE_TIMER_MIN (5000)  // 500 us
+#define RXIDLE_TIMER_MIN (machine_timer_freq_hz() * 5 / 10000) // 500us minimum rxidle time
 #define UART_QUEUE_SIZE (3)
 
 enum {
@@ -110,30 +110,19 @@ static const char *_parity_name[] = {"None", "1", "0"};
     { MP_ROM_QSTR(MP_QSTR_IRQ_RXIDLE), MP_ROM_INT(UART_IRQ_RXIDLE) }, \
     { MP_ROM_QSTR(MP_QSTR_IRQ_BREAK), MP_ROM_INT(UART_IRQ_BREAK) }, \
 
-static void uart_timer_callback(void *self_in) {
-    machine_timer_obj_t *self = self_in;
-
-    uint32_t intr_status = timer_ll_get_intr_status(self->hal_context.dev);
-
-    if (intr_status & TIMER_LL_EVENT_ALARM(self->index)) {
-        timer_ll_clear_intr_status(self->hal_context.dev, TIMER_LL_EVENT_ALARM(self->index));
-        if (self->repeat) {
-            timer_ll_enable_alarm(self->hal_context.dev, self->index, true);
-        }
-    }
-
+static void uart_timer_callback(machine_timer_obj_t *timer) {
     // The UART object is referred here by the callback field.
-    machine_uart_obj_t *uart = (machine_uart_obj_t *)self->callback;
-    if (uart->rxidle_state == RXIDLE_ALERT) {
+    machine_uart_obj_t *self = (machine_uart_obj_t *)timer->callback;
+    if (self->rxidle_state == RXIDLE_ALERT) {
         // At the first call, just switch the state
-        uart->rxidle_state = RXIDLE_ARMED;
-    } else if (uart->rxidle_state == RXIDLE_ARMED) {
+        self->rxidle_state = RXIDLE_ARMED;
+    } else if (self->rxidle_state == RXIDLE_ARMED) {
         // At the second call, run the irq callback and stop the timer
-        uart->rxidle_state = RXIDLE_STANDBY;
-        uart->mp_irq_flags = UART_IRQ_RXIDLE;
-        mp_irq_handler(uart->mp_irq_obj);
+        self->rxidle_state = RXIDLE_STANDBY;
+        self->mp_irq_flags = UART_IRQ_RXIDLE;
+        mp_irq_handler(self->mp_irq_obj);
         mp_hal_wake_main_task_from_isr();
-        machine_timer_disable(uart->rxidle_timer);
+        machine_timer_disable(self->rxidle_timer);
     }
 }
 
@@ -150,9 +139,7 @@ static void uart_event_task(void *self_in) {
                     if (self->mp_irq_trigger & UART_IRQ_RXIDLE) {
                         if (self->rxidle_state != RXIDLE_INACTIVE) {
                             if (self->rxidle_state == RXIDLE_STANDBY) {
-                                self->rxidle_timer->repeat = true;
-                                self->rxidle_timer->handle = NULL;
-                                machine_timer_enable(self->rxidle_timer, uart_timer_callback);
+                                machine_timer_enable(self->rxidle_timer);
                             }
                         }
                         self->rxidle_state = RXIDLE_ALERT;
@@ -521,20 +508,21 @@ static bool mp_machine_uart_txdone(machine_uart_obj_t *self) {
 }
 
 static void mp_machine_uart_sendbreak(machine_uart_obj_t *self) {
-    // Save settings
+    // Calculate the length of the break, as 13 bits.
     uint32_t baudrate;
     check_esp_err(uart_get_baudrate(self->uart_num, &baudrate));
+    uint32_t break_delay_us = 13000000 / baudrate;
 
-    // Synthesise the break condition by reducing the baud rate,
-    // and cater for the worst case of 5 data bits, no parity.
-    check_esp_err(uart_wait_tx_done(self->uart_num, pdMS_TO_TICKS(1000)));
-    check_esp_err(uart_set_baudrate(self->uart_num, baudrate * 6 / 15));
-    char buf[1] = {0};
-    uart_write_bytes(self->uart_num, buf, 1);
+    // Wait for any outstanding data to be transmitted.
     check_esp_err(uart_wait_tx_done(self->uart_num, pdMS_TO_TICKS(1000)));
 
-    // Restore original setting
-    check_esp_err(uart_set_baudrate(self->uart_num, baudrate));
+    // Set the TX pin to output, pull it low, and wait for the break period.
+    mp_hal_pin_output(self->tx);
+    mp_hal_pin_write(self->tx, 0);
+    mp_hal_delay_us(break_delay_us);
+
+    // Restore original UART pin settings.
+    check_esp_err(uart_set_pin(self->uart_num, self->tx, self->rx, self->rts, self->cts));
 }
 
 // Configure the timer used for IRQ_RXIDLE
@@ -547,17 +535,17 @@ static void uart_irq_configure_timer(machine_uart_obj_t *self, mp_uint_t trigger
         self->mp_irq_obj->ishard = false;
         uint32_t baudrate;
         uart_get_baudrate(self->uart_num, &baudrate);
-        mp_int_t period = TIMER_SCALE * 20 / baudrate + 1;
+        mp_int_t period = machine_timer_freq_hz() * 20 / baudrate + 1;
         if (period < RXIDLE_TIMER_MIN) {
             period = RXIDLE_TIMER_MIN;
         }
         self->rxidle_period = period;
         self->rxidle_timer->period = period;
+        self->rxidle_timer->handler = uart_timer_callback;
         // The Python callback is not used. So use this
         // data field to hold a reference to the UART object.
         self->rxidle_timer->callback = self;
         self->rxidle_timer->repeat = true;
-        self->rxidle_timer->handle = NULL;
         self->rxidle_state = RXIDLE_STANDBY;
     }
 }

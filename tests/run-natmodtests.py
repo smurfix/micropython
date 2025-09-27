@@ -9,6 +9,8 @@ import subprocess
 import sys
 import argparse
 
+run_tests_module = __import__("run-tests")
+
 sys.path.append("../tools")
 import pyboard
 
@@ -73,6 +75,7 @@ class __FS:
     return __File()
 vfs.mount(__FS(), '/__remote')
 sys.path.insert(0, '/__remote')
+{import_prelude}
 sys.modules['{}'] = __import__('__injected')
 """
 
@@ -132,7 +135,15 @@ def detect_architecture(target):
         return platform, arch, None
 
 
-def run_tests(target_truth, target, args, stats, resolved_arch):
+def run_tests(target_truth, target, args, resolved_arch):
+    global injected_import_hook_code
+
+    prelude = ""
+    if args.begin:
+        prelude = args.begin.read()
+    injected_import_hook_code = injected_import_hook_code.replace("{import_prelude}", prelude)
+
+    test_results = []
     for test_file in args.files:
         # Find supported test
         test_file_basename = os.path.basename(test_file)
@@ -155,9 +166,11 @@ def run_tests(target_truth, target, args, stats, resolved_arch):
             with open(NATMOD_EXAMPLE_DIR + test_mpy, "rb") as f:
                 test_script += b"__buf=" + bytes(repr(f.read()), "ascii") + b"\n"
         except OSError:
-            print("----  {} - mpy file not compiled".format(test_file))
+            test_results.append((test_file, "skip", "mpy file not compiled"))
+            print("skip  {} - mpy file not compiled".format(test_file))
             continue
         test_script += bytes(injected_import_hook_code.format(test_module), "ascii")
+        test_script += b"print('START TEST')\n"
         test_script += test_file_data
 
         # Run test under MicroPython
@@ -165,8 +178,18 @@ def run_tests(target_truth, target, args, stats, resolved_arch):
 
         # Work out result of test
         extra = ""
+        result_out = result_out.removeprefix(b"START TEST\n")
         if error is None and result_out == b"SKIP\n":
             result = "SKIP"
+        elif (
+            error is not None
+            and error.args[0] == "exception"
+            and error.args[1] == b""
+            and b"MemoryError" in error.args[2]
+        ):
+            # Test had a MemoryError before anything (should be at least "START TEST")
+            # was printed, so the test is too big for the target.
+            result = "LRGE"
         elif error is not None:
             result = "FAIL"
             extra = " - " + str(error)
@@ -187,16 +210,19 @@ def run_tests(target_truth, target, args, stats, resolved_arch):
                 result = "pass"
 
         # Accumulate statistics
-        stats["total"] += 1
         if result == "pass":
-            stats["pass"] += 1
+            test_results.append((test_file, "pass", ""))
         elif result == "SKIP":
-            stats["skip"] += 1
+            test_results.append((test_file, "skip", ""))
+        elif result == "LRGE":
+            test_results.append((test_file, "skip", "too large"))
         else:
-            stats["fail"] += 1
+            test_results.append((test_file, "fail", ""))
 
         # Print result
         print("{:4}  {}{}".format(result, test_file, extra))
+
+    return test_results
 
 
 def main():
@@ -211,6 +237,19 @@ def main():
     )
     cmd_parser.add_argument(
         "-a", "--arch", choices=AVAILABLE_ARCHS, help="override native architecture of the target"
+    )
+    cmd_parser.add_argument(
+        "-b",
+        "--begin",
+        type=argparse.FileType("rt"),
+        default=None,
+        help="prologue python file to execute before module import",
+    )
+    cmd_parser.add_argument(
+        "-r",
+        "--result-dir",
+        default=run_tests_module.base_path("results"),
+        help="directory for test results",
     )
     cmd_parser.add_argument("files", nargs="*", help="input test files")
     args = cmd_parser.parse_args()
@@ -236,20 +275,14 @@ def main():
         print("platform={} ".format(target_platform), end="")
     print("arch={}".format(target_arch))
 
-    stats = {"total": 0, "pass": 0, "fail": 0, "skip": 0}
-    run_tests(target_truth, target, args, stats, target_arch)
+    os.makedirs(args.result_dir, exist_ok=True)
+    test_results = run_tests(target_truth, target, args, target_arch)
+    res = run_tests_module.create_test_report(args, test_results)
 
     target.close()
     target_truth.close()
 
-    print("{} tests performed".format(stats["total"]))
-    print("{} tests passed".format(stats["pass"]))
-    if stats["fail"]:
-        print("{} tests failed".format(stats["fail"]))
-    if stats["skip"]:
-        print("{} tests skipped".format(stats["skip"]))
-
-    if stats["fail"]:
+    if not res:
         sys.exit(1)
 
 
