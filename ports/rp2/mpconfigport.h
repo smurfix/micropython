@@ -109,6 +109,7 @@
 #endif
 #elif PICO_RISCV
 #define MICROPY_EMIT_RV32                       (1)
+#define MICROPY_EMIT_RV32_ZBA                   (1)
 #define MICROPY_EMIT_INLINE_RV32                (1)
 #endif
 
@@ -150,8 +151,6 @@
 #define MICROPY_PY_OS_URANDOM                   (1)
 #define MICROPY_PY_RE_MATCH_GROUPS              (1)
 #define MICROPY_PY_RE_MATCH_SPAN_START_END      (1)
-#define MICROPY_PY_HASHLIB_SHA1                 (1)
-#define MICROPY_PY_CRYPTOLIB                    (1)
 #define MICROPY_PY_TIME_GMTIME_LOCALTIME_MKTIME (1)
 #define MICROPY_PY_TIME_TIME_TIME_NS            (1)
 #define MICROPY_PY_TIME_INCLUDEFILE             "ports/rp2/modtime.c"

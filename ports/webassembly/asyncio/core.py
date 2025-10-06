@@ -66,7 +66,7 @@ class SingletonGenerator:
             raise self.exc
 
 
-# Pause task execution for the given time (integer in milliseconds, uPy extension)
+# Pause task execution for the given time (integer in milliseconds, MicroPython extension)
 # Use a SingletonGenerator to do it without allocating on the heap
 def sleep_ms(t, sgen=SingletonGenerator()):
     assert sgen.state is None
@@ -98,13 +98,21 @@ class TopLevelCoro:
 
 class ThenableEvent:
     def __init__(self, thenable):
-        self.result = None  # Result of the thenable
         self.waiting = None  # Task waiting on completion of this thenable
-        thenable.then(self.set)
+        thenable.then(self.set, self.cancel)
 
     def set(self, value=None):
         # Thenable/Promise is fulfilled, set result and schedule any waiting task.
         self.result = value
+        if self.waiting:
+            _task_queue.push(self.waiting)
+            self.waiting = None
+
+    def cancel(self, value=None):
+        # Thenable/Promise is rejected, set error and schedule any waiting task.
+        self.error = jsffi.JsException(
+            value, getattr(value, "name", None), getattr(value, "message", None)
+        )
         if self.waiting:
             _task_queue.push(self.waiting)
             self.waiting = None
@@ -120,7 +128,9 @@ class ThenableEvent:
         cur_task.data = self
         # Wait for the thenable to fulfill.
         yield
-        # Return the result of the thenable.
+        # Raise the error, or return the result, of the thenable.
+        if hasattr(self, "error"):
+            raise self.error
         return self.result
 
 
@@ -262,8 +272,7 @@ def get_event_loop():
 
 
 def current_task():
-    if cur_task is None:
-        raise RuntimeError("no running event loop")
+    assert cur_task is not None
     return cur_task
 
 
