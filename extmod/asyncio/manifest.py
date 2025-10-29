@@ -10,6 +10,7 @@ package(
         "lock.py",
         "stream.py",
         "taskgroup.py",
+        "threads.py",
     ),
     base_path="..",
     opt=3,

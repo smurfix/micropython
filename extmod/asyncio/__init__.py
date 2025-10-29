@@ -17,6 +17,7 @@ _attrs = {
     "StreamReader": "stream",
     "StreamWriter": "stream",
     "TaskGroup": "taskgroup",
+    "to_thread": "threads",
 }
 
 
