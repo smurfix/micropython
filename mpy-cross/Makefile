@@ -1,5 +1,7 @@
 # No we don't use separate build dirs for mpy-cross
-BUILD = build
+all:
+	printenv
+BUILD := build
 
 include ../py/mkenv.mk
 
