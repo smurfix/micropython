@@ -41,7 +41,7 @@
 #define MICROPY_VERSION_MAJOR 1
 #define MICROPY_VERSION_MINOR 27
 #define MICROPY_VERSION_MICRO 0
-#define MICROPY_VERSION_PRERELEASE 1
+#define MICROPY_VERSION_PRERELEASE 0
 
 // Combined version as a 32-bit number for convenience to allow version
 // comparison. Doesn't include prerelease state.
@@ -1178,6 +1178,16 @@ typedef time_t mp_timestamp_t;
 // Whether to support mp_sched_vm_abort to asynchronously abort to the top level.
 #ifndef MICROPY_ENABLE_VM_ABORT
 #define MICROPY_ENABLE_VM_ABORT (0)
+#endif
+
+// Whether to handle abort behavior in pyexec code
+#ifndef MICROPY_PYEXEC_ENABLE_VM_ABORT
+#define MICROPY_PYEXEC_ENABLE_VM_ABORT (0)
+#endif
+
+// Whether to set exit codes according to the exit reason (keyboard interrupt, crash, normal exit, ...)
+#ifndef MICROPY_PYEXEC_ENABLE_EXIT_CODE_HANDLING
+#define MICROPY_PYEXEC_ENABLE_EXIT_CODE_HANDLING (0)
 #endif
 
 // Support for internal scheduler
