@@ -109,7 +109,9 @@
 
 #define MICROPY_PY_RANDOM_SEED_INIT_FUNC    (esp_random())
 #define MICROPY_PY_OS_INCLUDEFILE           "ports/esp32/modos.c"
+#ifndef MICROPY_PY_OS_DUPTERM
 #define MICROPY_PY_OS_DUPTERM               (1)
+#endif
 #define MICROPY_PY_OS_DUPTERM_NOTIFY        (1)
 #define MICROPY_PY_OS_SYNC                  (1)
 #define MICROPY_PY_OS_UNAME                 (1)
