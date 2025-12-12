@@ -230,3 +230,5 @@ static inline unsigned long mp_random_seed_init(void) {
 #ifndef MICROPY_PY_SYS_SETTRACE
 #define MICROPY_PY_SYS_SETTRACE (1)
 #endif
+
+#define MICROPY_PY_OS_DUPTERM (2)
