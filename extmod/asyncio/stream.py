@@ -5,6 +5,7 @@ from . import core
 
 
 class Stream:
+    # The underlying socket must have an idempotent `close` method.
     def __init__(self, s, e={}):
         self.s = s
         self.e = e
@@ -18,13 +19,14 @@ class Stream:
 
     async def __aexit__(self, exc_type, exc, tb):
         self.s.close()
-        pass
 
     def close(self):
-        pass
+        # The (old) CPython idiom is to call `close`, then immediately
+        # follow up with `await stream.wait_closed`.
+        self.s.close()
 
     async def wait_closed(self):
-        # TODO yield?
+        # XXX yield?
         self.s.close()
 
     # async
@@ -80,19 +82,22 @@ class Stream:
                 buf = buf[ret:]
         self.out_buf += buf
 
-    # async
-    def drain(self):
-        if not self.out_buf:
-            # Drain must always yield, so a tight loop of write+drain can't block the scheduler.
-            return (yield from core.sleep_ms(0))
-        mv = memoryview(self.out_buf)
+    async def awrite(self, buf):
+        mv = memoryview(buf)
         off = 0
         while off < len(mv):
             yield core._io_queue.queue_write(self.s)
             ret = self.s.write(mv[off:])
             if ret is not None:
                 off += ret
+
+    async def drain(self):
+        buf = self.out_buf
+        if not buf:
+            # Drain must always yield, so a tight loop of write+drain can't block the scheduler.
+            return await core.sleep_ms(0)
         self.out_buf = b""
+        await self.awrite(buf)
 
 
 # Stream can be used for both reading and writing to save code size
