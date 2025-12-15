@@ -186,11 +186,13 @@ main_term:;
 
 mp_uint_t mp_hal_stdout_tx_strn(const char *str, size_t len) {
     ssize_t ret;
-    MP_HAL_RETRY_SYSCALL(ret, write(STDOUT_FILENO, str, len), {});
-    mp_uint_t written = ret < 0 ? 0 : ret;
+    mp_uint_t written;
     int dupterm_res = mp_os_dupterm_tx_strn(str, len);
     if (dupterm_res >= 0) {
-        written = MIN((mp_uint_t)dupterm_res, written);
+        written = (mp_uint_t)dupterm_res;
+    } else {
+        MP_HAL_RETRY_SYSCALL(ret, write(STDOUT_FILENO, str, len), {});
+        written = ret < 0 ? 0 : ret;
     }
     return written;
 }
