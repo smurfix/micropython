@@ -87,10 +87,14 @@ uintptr_t mp_os_dupterm_poll(uintptr_t poll_flags) {
 
         if (ret != MP_STREAM_ERROR) {
             poll_flags_out |= ret;
+            #if 0
+            // actually, some of these ioctl calls might have
+            // side effects that should not be skipped
             if (poll_flags_out == poll_flags) {
                 // Finish early if all requested flags are set
                 break;
             }
+            #endif
         }
     }
 
