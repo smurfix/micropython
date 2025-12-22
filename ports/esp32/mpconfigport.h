@@ -109,7 +109,9 @@
 
 #define MICROPY_PY_RANDOM_SEED_INIT_FUNC    (esp_random())
 #define MICROPY_PY_OS_INCLUDEFILE           "ports/esp32/modos.c"
+#ifndef MICROPY_PY_OS_DUPTERM
 #define MICROPY_PY_OS_DUPTERM               (1)
+#endif
 #define MICROPY_PY_OS_DUPTERM_NOTIFY        (1)
 #define MICROPY_PY_OS_SYNC                  (1)
 #define MICROPY_PY_OS_UNAME                 (1)
@@ -305,14 +307,14 @@ void *esp_native_code_commit(void *, size_t, void *);
 
 #if MICROPY_PY_THREAD
 #define MICROPY_EVENT_POLL_HOOK \
-    do { \
-        extern void mp_handle_pending(bool); \
-        mp_handle_pending(true); \
-        MICROPY_PY_SOCKET_EVENTS_HANDLER \
-        MP_THREAD_GIL_EXIT(); \
-        ulTaskNotifyTake(pdFALSE, 1); \
-        MP_THREAD_GIL_ENTER(); \
-    } while (0);
+        do { \
+            extern void mp_handle_pending(bool); \
+            mp_handle_pending(true); \
+            MICROPY_PY_SOCKET_EVENTS_HANDLER \
+            MP_THREAD_GIL_EXIT(); \
+            ulTaskNotifyTake(pdFALSE, 1); \
+            MP_THREAD_GIL_ENTER(); \
+        } while (0);
 #else
 #if CONFIG_IDF_TARGET_ARCH_RISCV
 #define MICROPY_PY_WAIT_FOR_INTERRUPT asm volatile ("wfi\n")
@@ -320,12 +322,12 @@ void *esp_native_code_commit(void *, size_t, void *);
 #define MICROPY_PY_WAIT_FOR_INTERRUPT asm volatile ("waiti 0\n")
 #endif
 #define MICROPY_EVENT_POLL_HOOK \
-    do { \
-        extern void mp_handle_pending(bool); \
-        mp_handle_pending(true); \
-        MICROPY_PY_SOCKET_EVENTS_HANDLER \
-            MICROPY_PY_WAIT_FOR_INTERRUPT; \
-    } while (0);
+        do { \
+            extern void mp_handle_pending(bool); \
+            mp_handle_pending(true); \
+            MICROPY_PY_SOCKET_EVENTS_HANDLER \
+                MICROPY_PY_WAIT_FOR_INTERRUPT; \
+        } while (0);
 #endif
 
 // Functions that should go in IRAM
