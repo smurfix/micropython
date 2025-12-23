@@ -154,7 +154,7 @@ class Task:
     def done(self):
         return not self.state
 
-    def cancel(self):
+    def cancel(self, reason: str | None = None):
         # Check if task is already finished.
         if not self.state:
             return False
