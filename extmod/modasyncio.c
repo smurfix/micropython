@@ -194,15 +194,15 @@ static mp_obj_t task_done(mp_obj_t self_in) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(task_done_obj, task_done);
 
-static mp_obj_t task_cancel(mp_obj_t self_in) {
-    mp_obj_task_t *self = MP_OBJ_TO_PTR(self_in);
+static mp_obj_t task_cancel(size_t n_args, const mp_obj_t *args) {
+    mp_obj_task_t *self = MP_OBJ_TO_PTR(args[0]);
     // Check if task is already finished.
     if (TASK_IS_DONE(self)) {
         return mp_const_false;
     }
     // Can't cancel self (not supported yet).
     mp_obj_t cur_task = mp_obj_dict_get(mp_asyncio_context, MP_OBJ_NEW_QSTR(MP_QSTR_cur_task));
-    if (self_in == cur_task) {
+    if (self == cur_task) {
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("can't cancel self"));
     }
     // If Task waits on another task then forward the cancel to the one it's waiting on.
@@ -237,7 +237,7 @@ static mp_obj_t task_cancel(mp_obj_t self_in) {
 
     return mp_const_true;
 }
-static MP_DEFINE_CONST_FUN_OBJ_1(task_cancel_obj, task_cancel);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(task_cancel_obj, 1, 2, task_cancel);
 
 static void task_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
     mp_obj_task_t *self = MP_OBJ_TO_PTR(self_in);
