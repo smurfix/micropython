@@ -6,7 +6,7 @@ from micropython import const
 from . import core
 from . import Event
 
-_DEBUG = False
+_DEBUG = True
 _s_new = const(0)
 _s_entered = const(1)
 _s_exiting = const(2)
